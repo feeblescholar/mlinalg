@@ -1,9 +1,4 @@
-#include "../src/workflowtest.hpp"
-#include <gtest/gtest.h>
-
-TEST(workflowtest, addition) {
-    EXPECT_EQ(add(2, 4), 6);
-}
+#include "test.hpp"
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
