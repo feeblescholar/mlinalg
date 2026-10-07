@@ -24,6 +24,6 @@
 
 ## 5. C++ & Architecture Specifics (Crucial for AI)
 *   **Template Metaprogramming (TMP) Errors:** C++ template errors can be massive. When a build fails, do not panic and change the whole architecture. Look at the *first* instantiation error in the compiler output to find the root cause.
-*   **Header-Heavy Design:** Because we are using Expression Templates and TMP, expect most of the logic to live in header files (`.hpp`). Ensure strict use of `#pragma once`.
+*   **Header-Heavy Design:** Because we are using Expression Templates and TMP, expect most of the logic to live in header files (`.hpp`). Ensure strict use of header guards.
 *   **SIMD Intrinsics Containment:** NEVER write raw platform intrinsics (AVX/NEON) outside of the `Packet<T>` abstraction layer (Module 2). The math evaluator must only use the `Packet<T>` API.
 *   **C++ Standard:** Stick strictly to C++20/23 features. Do not use legacy C++98/11 paradigms where modern equivalents (Concepts, constexpr, type traits) exist.
