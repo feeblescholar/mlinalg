@@ -1,0 +1,30 @@
+Checks: >
+  bugprone-*,
+  clang-diagnostic-*,
+  performance-*,
+  cppcoreguidelines-*,
+  misc-explicit-constructor,
+  misc-header-include-cycle,
+  misc-include-cleaner,
+  misc-static-assert,
+  portability-avoid-pragma-comment,
+  readability-avoid-unconditional-preprocessor-if,
+  readability-braces-around-statements,
+  readability-delete-null-pointer,
+  readability-duplicate-include,
+  readability-else-after-return,
+  readability-implicit-bool-conversion,
+  readability-inconsistent-ifelse-braces,
+  readability-make-member-function-const,
+  readability-misplaced-array-index,
+  readability-redundant-*,
+  readability-simplify-*,
+  readability-trivial-switch
+
+
+WarningsAsErrors: >
+  performance-*,
+  bugprone-*
+
+HeaderFilterRegex: '.*'
+FormatStyle: 'file'

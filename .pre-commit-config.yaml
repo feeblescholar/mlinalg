@@ -1,0 +1,33 @@
+# Global exclusion for top-level directories
+exclude: '^(lib/|googletest/|build/|target/|\.github/)'
+
+repos:
+  # Standard out-of-the-box hooks for basic file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  # Official clang-format mirror
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c++, c]
+        args: ["-style=file", "-Werror", "--dry-run"]
+
+  # Local clang-tidy hook
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        description: Run clang-tidy via bear and make
+        entry: bash -c 'if [ ! -f compile_commands.json ]; then bear -- make all > /dev/null 2>&1; fi; clang-tidy -p . "$@"' --
+        language: system
+        types_or: [c++]
+        require_serial: true
+        files: \.(cpp)$
+        exclude: '^(lib/|test/|.*googletest/)'

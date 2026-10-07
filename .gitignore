@@ -1,0 +1,55 @@
+# Prerequisites (Make dependency files)
+*.d
+
+# Compiled Object files
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.la
+*.lai
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build and Output Directories
+build/
+target/
+bin/
+out/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Text Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.tmp
+
+# Testing, Coverage, and Profiling
+*.gcda
+*.gcno
+*.gcov
+callgrind.out.*
