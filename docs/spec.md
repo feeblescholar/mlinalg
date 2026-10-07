@@ -19,7 +19,7 @@ _Note: This is the initial specification. Subject to change during the implement
 ## Module 2: SIMD Abstraction Layer
 **Goal:** Isolate platform-specific intrinsics from the rest of the codebase. Agents must NEVER write intrinsics directly in the matrix math logic.
 
-*   **Structure:** Create a `Packet<T>` template specialized for `float`, `double`, and `std::complex<T>`.
+*   **Structure:** Create a `Packet<T>` template specialized for `int`, `float`, `double`, and `std::complex<T>`.
 *   **Hardware Mapping:**
 
 | Architecture | Intrinsic Set | Vector Size | Elements (Float / Double) |
