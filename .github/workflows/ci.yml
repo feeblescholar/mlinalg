@@ -52,4 +52,4 @@ jobs:
       - name: Run Tests (Windows)
         if: matrix.os == 'windows-latest'
         shell: msys2 {0}
-        run: ./build/mlinalg.exe --gtest_color=yes --gtest_break_on_failure
+        run: ./build/mlinalg_gtest.exe --gtest_color=yes --gtest_break_on_failure
