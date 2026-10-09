@@ -7,11 +7,13 @@
 // stores them in column-major order: coefficient (row, col) lives at linear index
 // col * rows() + row. A vector is a matrix with one dimension fixed to 1 (see Vector, RowVector).
 //
-// Expressions (Module 3) are evaluated only when they are assigned to a Matrix, either through
-// the evaluation constructor or through operator=.
+// The arithmetic operators (matrix_operators.hpp) build expressions (Module 3) instead of
+// computing results. Expressions are evaluated only when they are assigned to a Matrix, either
+// through the evaluation constructor or through operator=.
 
 #include "ast/expr_traits.hpp"
 #include "ast/matrix_wrapper.hpp"
+#include "matrix_operators.hpp"
 #include "matrix_storage.hpp"
 
 #include <concepts>
@@ -33,12 +35,15 @@ concept DynamicVectorDims = (Rows == 1 && Cols == Dynamic) || (Rows == Dynamic &
 /// An expression whose result can be stored in the matrix type M: same scalar type and
 /// statically compatible shape. Dynamic dimensions are checked at runtime.
 ///
-/// MatrixWrapper<M> itself is excluded before Expression is checked: Expression requires
-/// copy_constructible<MatrixWrapper<M>>, which considers the conversion MatrixWrapper<M> -> M
-/// through M's evaluation constructor, which would check EvaluableTo<MatrixWrapper<M>, M> again.
-/// Evaluating a matrix's own wrapper is a plain copy anyway.
+/// M and MatrixWrapper<M> are excluded before Expression is checked, because Expression requires
+/// copy_constructibility, which recurses into M's evaluation constructor:
+///   * Expression<M> checks copy_constructible<M>, whose overload set contains the evaluation
+///     constructor with E = M.
+///   * Expression<MatrixWrapper<M>> checks copy_constructible<MatrixWrapper<M>>, which considers
+///     the conversion MatrixWrapper<M> -> M through the evaluation constructor.
+/// Neither is an expression to evaluate: both are plain copies.
 template <typename E, typename M>
-concept EvaluableTo = !std::same_as<E, MatrixWrapper<M>> && Expression<E> &&
+concept EvaluableTo = !std::same_as<E, M> && !std::same_as<E, MatrixWrapper<M>> && Expression<E> &&
                       std::same_as<expr_scalar_t<E>, typename M::value_type> &&
                       dims_compatible(expr_rows_v<E>, M::RowsAtCompileTime) &&
                       dims_compatible(expr_cols_v<E>, M::ColsAtCompileTime);
