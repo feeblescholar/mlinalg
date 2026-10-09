@@ -128,8 +128,9 @@ static_assert(std::is_same_v<decltype(std::declval<const MCX&>().det()), C>);
 // Non-square at compile time.
 static_assert(!HasLu<M23> && !HasDet<M23>);
 
-// Integer division is not exact, so LU-based functionality is not offered.
-static_assert(!HasLu<Matrix<int, 3, 3>> && !HasDet<Matrix<int, 3, 3>>);
+// Integer division is not exact, so there is no LU for integers (det() uses Bareiss instead, see
+// bareiss_test.cpp).
+static_assert(!HasLu<Matrix<int, 3, 3>> && HasDet<Matrix<int, 3, 3>>);
 
 // The permutation of a fixed-size decomposition is fixed-size too.
 static_assert(PartialPivLU<M44>::permutation_type::is_fixed);
