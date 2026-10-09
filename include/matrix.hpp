@@ -15,6 +15,7 @@
 #include "ast/matrix_wrapper.hpp"
 #include "matrix_operators.hpp"
 #include "matrix_storage.hpp"
+#include "partial_piv_lu.hpp"
 
 #include <concepts>
 #include <initializer_list>
@@ -31,6 +32,11 @@ concept VectorDims = Rows == 1 || Cols == 1;
 /// One dimension is fixed to 1 and the other one is Dynamic.
 template <int Rows, int Cols>
 concept DynamicVectorDims = (Rows == 1 && Cols == Dynamic) || (Rows == Dynamic && Cols == 1);
+
+/// Square at compile time where known: both dimensions equal, or at least one Dynamic (then
+/// checked at runtime).
+template <int Rows, int Cols>
+concept SquareDims = dims_compatible(Rows, Cols);
 
 /// An expression whose result can be stored in the matrix type M: same scalar type and
 /// statically compatible shape. Dynamic dimensions are checked at runtime.
@@ -144,6 +150,16 @@ class Matrix {
                                Matrix& rhs) noexcept(std::is_nothrow_swappable_v<storage_type>) {
         lhs.swap(rhs);
     }
+
+    /// LU decomposition with partial pivoting, for reuse across several computations.
+    /// The matrix must be square. *this is not modified.
+    [[nodiscard]] constexpr auto lu() const -> PartialPivLU<Matrix>
+        requires detail::LuScalar<T> && detail::SquareDims<Rows, Cols>;
+
+    /// Determinant. The matrix must be square; the determinant of a 0 x 0 matrix is 1.
+    /// Closed-form for sizes up to 3 x 3, through lu() for larger ones.
+    [[nodiscard]] constexpr auto det() const -> T
+        requires detail::LuScalar<T> && detail::SquareDims<Rows, Cols>;
 
   private:
     [[nodiscard]] constexpr auto index_of(Index row, Index col) const noexcept -> Index;

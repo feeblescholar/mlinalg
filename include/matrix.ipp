@@ -210,6 +210,38 @@ Matrix<T, Rows, Cols>::swap(Matrix& other) noexcept(std::is_nothrow_swappable_v<
 
 template <StorageElement T, int Rows, int Cols>
     requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::lu() const -> PartialPivLU<Matrix>
+                 requires detail::LuScalar<T> && detail::SquareDims<Rows, Cols>
+{
+    return PartialPivLU<Matrix>(*this);
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::det() const -> T
+                 requires detail::LuScalar<T> && detail::SquareDims<Rows, Cols>
+{
+    assert(rows() == cols() && "Matrix::det: matrix must be square");
+    const Matrix& m = *this;
+    switch (rows()) {
+    case 0:
+        return T{1};
+    case 1:
+        return m(0, 0);
+    case 2:
+        return (m(0, 0) * m(1, 1)) - (m(0, 1) * m(1, 0));
+    case 3:
+        // Cofactor expansion along the first row.
+        return (m(0, 0) * ((m(1, 1) * m(2, 2)) - (m(1, 2) * m(2, 1)))) -
+               (m(0, 1) * ((m(1, 0) * m(2, 2)) - (m(1, 2) * m(2, 0)))) +
+               (m(0, 2) * ((m(1, 0) * m(2, 1)) - (m(1, 1) * m(2, 0))));
+    default:
+        return lu().determinant();
+    }
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
 constexpr auto Matrix<T, Rows, Cols>::index_of(Index row, Index col) const noexcept -> Index {
     assert(row >= 0 && row < rows() && col >= 0 && col < cols() &&
            "Matrix: coefficient index out of range");
