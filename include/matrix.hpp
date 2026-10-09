@@ -13,6 +13,7 @@
 
 #include "ast/expr_traits.hpp"
 #include "ast/matrix_wrapper.hpp"
+#include "bareiss.hpp"
 #include "matrix_operators.hpp"
 #include "matrix_storage.hpp"
 #include "partial_piv_lu.hpp"
@@ -37,6 +38,15 @@ concept DynamicVectorDims = (Rows == 1 && Cols == Dynamic) || (Rows == Dynamic &
 /// checked at runtime).
 template <int Rows, int Cols>
 concept SquareDims = dims_compatible(Rows, Cols);
+
+/// Matrix<T, Rows, Cols> offers lu(): a field-like scalar type and a square shape.
+template <typename T, int Rows, int Cols>
+concept LuDecomposable = LuScalar<T> && SquareDims<Rows, Cols>;
+
+/// Matrix<T, Rows, Cols> offers det(): computed through LU for floating-point and complex scalars,
+/// exactly through Bareiss elimination for signed integers.
+template <typename T, int Rows, int Cols>
+concept HasDeterminant = (LuScalar<T> || BareissScalar<T>) && SquareDims<Rows, Cols>;
 
 /// An expression whose result can be stored in the matrix type M: same scalar type and
 /// statically compatible shape. Dynamic dimensions are checked at runtime.
@@ -154,12 +164,14 @@ class Matrix {
     /// LU decomposition with partial pivoting, for reuse across several computations.
     /// The matrix must be square. *this is not modified.
     [[nodiscard]] constexpr auto lu() const -> PartialPivLU<Matrix>
-        requires detail::LuScalar<T> && detail::SquareDims<Rows, Cols>;
+        requires detail::LuDecomposable<T, Rows, Cols>;
 
     /// Determinant. The matrix must be square; the determinant of a 0 x 0 matrix is 1.
-    /// Closed-form for sizes up to 3 x 3, through lu() for larger ones.
+    /// Closed-form for sizes up to 3 x 3. Larger sizes go through lu() for floating-point and
+    /// complex scalars, and through exact Bareiss elimination for signed integers (which can
+    /// overflow T, see bareiss.hpp).
     [[nodiscard]] constexpr auto det() const -> T
-        requires detail::LuScalar<T> && detail::SquareDims<Rows, Cols>;
+        requires detail::HasDeterminant<T, Rows, Cols>;
 
   private:
     [[nodiscard]] constexpr auto index_of(Index row, Index col) const noexcept -> Index;
