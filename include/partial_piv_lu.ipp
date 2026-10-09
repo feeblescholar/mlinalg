@@ -58,6 +58,44 @@ template <typename M> constexpr auto PartialPivLU<M>::determinant() const -> val
     return det;
 }
 
+template <typename M> constexpr auto PartialPivLU<M>::is_invertible() const -> bool {
+    for (Index i = 0; i < m_lu.rows(); ++i) {
+        if (m_lu(i, i) == value_type{0}) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename M> constexpr auto PartialPivLU<M>::inverse() const -> M {
+    assert(is_invertible() && "PartialPivLU::inverse: matrix is singular");
+    const Index n   = m_lu.rows();
+    M           inv = m_lu; // same shape; every coefficient is overwritten below
+
+    for (Index j = 0; j < n; ++j) {
+        // Right-hand side: column j of P, i.e. a 1 in the row that was moved from row j.
+        for (Index i = 0; i < n; ++i) {
+            inv(i, j) = m_permutation[i] == j ? value_type{1} : value_type{0};
+        }
+        // Forward substitution with the unit lower triangle L, column-oriented.
+        for (Index k = 0; k < n; ++k) {
+            const value_type xk = inv(k, j);
+            for (Index i = k + 1; i < n; ++i) {
+                inv(i, j) -= m_lu(i, k) * xk;
+            }
+        }
+        // Back substitution with the upper triangle U, column-oriented.
+        for (Index k = n - 1; k >= 0; --k) {
+            inv(k, j) /= m_lu(k, k);
+            const value_type xk = inv(k, j);
+            for (Index i = 0; i < k; ++i) {
+                inv(i, j) -= m_lu(i, k) * xk;
+            }
+        }
+    }
+    return inv;
+}
+
 template <typename M> constexpr void PartialPivLU<M>::compute() {
     // Right-looking Doolittle elimination. Inner loops run down columns to match the
     // column-major layout.

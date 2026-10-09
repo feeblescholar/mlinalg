@@ -173,6 +173,12 @@ class Matrix {
     [[nodiscard]] constexpr auto det() const -> T
         requires detail::HasDeterminant<T, Rows, Cols>;
 
+    /// Inverse. The matrix must be square and invertible; a singular matrix is only caught by an
+    /// assertion, so check lu().is_invertible() first when that is not known. Closed-form
+    /// (adjugate / determinant) for sizes up to 3 x 3, through lu() for larger ones.
+    [[nodiscard]] constexpr auto inv() const -> Matrix
+        requires detail::LuDecomposable<T, Rows, Cols>;
+
   private:
     [[nodiscard]] constexpr auto index_of(Index row, Index col) const noexcept -> Index;
 

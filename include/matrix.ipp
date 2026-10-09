@@ -246,6 +246,48 @@ template <StorageElement T, int Rows, int Cols>
 
 template <StorageElement T, int Rows, int Cols>
     requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::inv() const -> Matrix
+                 requires detail::LuDecomposable<T, Rows, Cols>
+{
+    assert(rows() == cols() && "Matrix::inv: matrix must be square");
+    const Index n = rows();
+    if (n > 3) {
+        return lu().inverse();
+    }
+
+    const Matrix& m      = *this;
+    Matrix        result = m; // same shape; every coefficient is overwritten below
+    if (n == 0) {
+        return result;
+    }
+    const T det = this->det();
+    assert(det != T{0} && "Matrix::inv: matrix is singular");
+    const T inv_det = T{1} / det;
+
+    if (n == 1) {
+        result(0, 0) = inv_det;
+    } else if (n == 2) {
+        result(0, 0) = m(1, 1) * inv_det;
+        result(0, 1) = -m(0, 1) * inv_det;
+        result(1, 0) = -m(1, 0) * inv_det;
+        result(1, 1) = m(0, 0) * inv_det;
+    } else {
+        // Transposed cofactor matrix (adjugate) divided by the determinant.
+        result(0, 0) = ((m(1, 1) * m(2, 2)) - (m(1, 2) * m(2, 1))) * inv_det;
+        result(0, 1) = ((m(0, 2) * m(2, 1)) - (m(0, 1) * m(2, 2))) * inv_det;
+        result(0, 2) = ((m(0, 1) * m(1, 2)) - (m(0, 2) * m(1, 1))) * inv_det;
+        result(1, 0) = ((m(1, 2) * m(2, 0)) - (m(1, 0) * m(2, 2))) * inv_det;
+        result(1, 1) = ((m(0, 0) * m(2, 2)) - (m(0, 2) * m(2, 0))) * inv_det;
+        result(1, 2) = ((m(0, 2) * m(1, 0)) - (m(0, 0) * m(1, 2))) * inv_det;
+        result(2, 0) = ((m(1, 0) * m(2, 1)) - (m(1, 1) * m(2, 0))) * inv_det;
+        result(2, 1) = ((m(0, 1) * m(2, 0)) - (m(0, 0) * m(2, 1))) * inv_det;
+        result(2, 2) = ((m(0, 0) * m(1, 1)) - (m(0, 1) * m(1, 0))) * inv_det;
+    }
+    return result;
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
 constexpr auto Matrix<T, Rows, Cols>::index_of(Index row, Index col) const noexcept -> Index {
     assert(row >= 0 && row < rows() && col >= 0 && col < cols() &&
            "Matrix: coefficient index out of range");

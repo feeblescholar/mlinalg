@@ -9,7 +9,8 @@
 //
 // The pivot of column k is the entry of largest magnitude on or below the diagonal. Magnitude is
 // |x| for real scalars and |re| + |im| for complex ones (the cheap norm LAPACK uses for pivoting).
-// A singular matrix is not an error: its zero pivots are kept and the determinant is 0.
+// A singular matrix is not an error: its zero pivots are kept and the determinant is 0. It has no
+// inverse, though: check is_invertible() before calling inverse().
 
 #include "matrix_storage.hpp"
 #include "packet.hpp"
@@ -66,6 +67,14 @@ template <typename M> class PartialPivLU {
 
     /// det(A) = sign(P) * product of the diagonal of U.
     [[nodiscard]] constexpr auto determinant() const -> value_type;
+
+    /// False if U has an exactly zero pivot. A matrix that is numerically close to singular still
+    /// counts as invertible; its inverse is then dominated by rounding errors.
+    [[nodiscard]] constexpr auto is_invertible() const -> bool;
+
+    /// A^-1, computed column by column from L * U * x = P * e_j. A must be invertible (checked
+    /// by an assertion only).
+    [[nodiscard]] constexpr auto inverse() const -> M;
 
   private:
     constexpr void compute();
