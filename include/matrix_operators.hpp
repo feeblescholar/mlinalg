@@ -1,11 +1,11 @@
 #ifndef MATRIX_OPERATORS_HPP
 #define MATRIX_OPERATORS_HPP
 
-// Module 4: overloaded +, -, * building AST nodes (Module 3), and the compound assignments
-// +=, -=, *=.
+// Module 4: overloaded +, -, * and transpose() / conj_transpose() building AST nodes (Module 3),
+// and the compound assignments +=, -=, *=.
 //
-// The binary operators never evaluate anything: they return proxy objects that are evaluated when
-// they are assigned to a Matrix. An operand is either
+// The binary operators and the transposes never evaluate anything: they return proxy objects that
+// are evaluated when they are assigned to a Matrix. An operand is either
 //   * an AST expression, which is copied into the new node, or
 //   * a concrete matrix (MatrixLeaf), which is wrapped in a non-owning MatrixWrapper. It must be an
 //     lvalue that outlives the expression; temporaries are rejected to prevent dangling.
@@ -103,6 +103,17 @@ template <typename X, typename S>
     requires detail::ScalarFor<S, X>
 [[nodiscard]] constexpr auto operator*(X&&      operand,
                                        const S& scalar) -> ScalarMulOp<detail::operand_expr_t<X>>;
+
+/// Transpose: rows and columns swapped.
+template <typename X>
+    requires detail::BindableOperand<X>
+[[nodiscard]] constexpr auto transpose(X&& operand) -> TransposeOp<detail::operand_expr_t<X>>;
+
+/// Conjugate (Hermitian) transpose. Equal to transpose() for real scalar types.
+template <typename X>
+    requires detail::BindableOperand<X>
+[[nodiscard]] constexpr auto
+conj_transpose(X&& operand) -> ConjTransposeOp<detail::operand_expr_t<X>>;
 
 namespace detail {
 

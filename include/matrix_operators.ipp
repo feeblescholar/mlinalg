@@ -56,6 +56,18 @@ constexpr auto operator*(X&& operand, const S& scalar) -> ScalarMulOp<detail::op
     return {scalar, detail::as_expr(std::forward<X>(operand))};
 }
 
+template <typename X>
+    requires detail::BindableOperand<X>
+constexpr auto transpose(X&& operand) -> TransposeOp<detail::operand_expr_t<X>> {
+    return TransposeOp<detail::operand_expr_t<X>>(detail::as_expr(std::forward<X>(operand)));
+}
+
+template <typename X>
+    requires detail::BindableOperand<X>
+constexpr auto conj_transpose(X&& operand) -> ConjTransposeOp<detail::operand_expr_t<X>> {
+    return ConjTransposeOp<detail::operand_expr_t<X>>(detail::as_expr(std::forward<X>(operand)));
+}
+
 // Evaluation goes through Matrix::operator=, which uses a temporary, so lhs may appear in rhs.
 
 template <typename M, typename R>
