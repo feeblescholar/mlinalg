@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <initializer_list>
 #include <type_traits>
 #include <utility>
@@ -284,6 +285,67 @@ template <StorageElement T, int Rows, int Cols>
         result(2, 2) = ((m(0, 0) * m(1, 1)) - (m(0, 1) * m(1, 0))) * inv_det;
     }
     return result;
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::norm1() const -> detail::real_t<T>
+                 requires detail::NormScalar<T>
+{
+    detail::real_t<T> largest{};
+    for (Index col = 0; col < cols(); ++col) {
+        detail::real_t<T> sum{};
+        for (Index row = 0; row < rows(); ++row) {
+            sum += detail::abs_value((*this)(row, col));
+        }
+        largest = std::max(largest, sum);
+    }
+    return largest;
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             auto Matrix<T, Rows, Cols>::norm2() const -> detail::real_t<T>
+                 requires detail::LuScalar<T>
+{
+    if (rows() == 1 || cols() == 1) {
+        return normF(); // a vector has a single singular value: its length
+    }
+    // The singular values of A and A^H are the same; rotate the smaller number of columns.
+    if (rows() >= cols()) {
+        return detail::spectral_norm(*this);
+    }
+    return detail::spectral_norm(Matrix<T, Cols, Rows>(conj_transpose(*this)));
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::norminf() const -> detail::real_t<T>
+                 requires detail::NormScalar<T>
+{
+    // Column-major traversal would need a buffer of row sums; matrices are scanned row by row
+    // instead, which costs strided reads but no allocation.
+    detail::real_t<T> largest{};
+    for (Index row = 0; row < rows(); ++row) {
+        detail::real_t<T> sum{};
+        for (Index col = 0; col < cols(); ++col) {
+            sum += detail::abs_value((*this)(row, col));
+        }
+        largest = std::max(largest, sum);
+    }
+    return largest;
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             auto Matrix<T, Rows, Cols>::normF() const -> detail::real_t<T>
+                 requires detail::LuScalar<T>
+{
+    detail::real_t<T> sum{};
+    for (const T& coeff : *this) {
+        sum += detail::abs_squared(coeff);
+    }
+    return std::sqrt(sum);
 }
 
 template <StorageElement T, int Rows, int Cols>

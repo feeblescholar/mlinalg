@@ -16,6 +16,7 @@
 #include "bareiss.hpp"
 #include "matrix_operators.hpp"
 #include "matrix_storage.hpp"
+#include "norms.hpp"
 #include "partial_piv_lu.hpp"
 
 #include <concepts>
@@ -178,6 +179,27 @@ class Matrix {
     /// (adjugate / determinant) for sizes up to 3 x 3, through lu() for larger ones.
     [[nodiscard]] constexpr auto inv() const -> Matrix
         requires detail::LuDecomposable<T, Rows, Cols>;
+
+    // Matrix norms. For a vector these are the norms of the n x 1 or 1 x n matrix: norm2() and
+    // normF() are the Euclidean length either way, but norm1() and norminf() swap roles between
+    // column and row vectors. Every norm of an empty matrix is 0.
+
+    /// Maximum absolute column sum (the operator norm induced by the vector 1-norm).
+    [[nodiscard]] constexpr auto norm1() const -> detail::real_t<T>
+        requires detail::NormScalar<T>;
+
+    /// Spectral norm: the largest singular value (the operator norm induced by the Euclidean
+    /// norm). Iterative for matrices, see norms.hpp; a single pass for vectors.
+    [[nodiscard]] auto norm2() const -> detail::real_t<T>
+        requires detail::LuScalar<T>;
+
+    /// Maximum absolute row sum (the operator norm induced by the vector max-norm).
+    [[nodiscard]] constexpr auto norminf() const -> detail::real_t<T>
+        requires detail::NormScalar<T>;
+
+    /// Frobenius norm: the square root of the sum of squared magnitudes.
+    [[nodiscard]] auto normF() const -> detail::real_t<T>
+        requires detail::LuScalar<T>;
 
   private:
     [[nodiscard]] constexpr auto index_of(Index row, Index col) const noexcept -> Index;
