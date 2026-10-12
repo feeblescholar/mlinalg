@@ -7,6 +7,8 @@
 #include <utility>
 
 using mlinalg::AddOp;
+using mlinalg::conj_transpose;
+using mlinalg::ConjTransposeOp;
 using mlinalg::Dynamic;
 using mlinalg::expr_cols_v;
 using mlinalg::expr_rows_v;
@@ -17,6 +19,8 @@ using mlinalg::MulOp;
 using mlinalg::RowVector;
 using mlinalg::ScalarMulOp;
 using mlinalg::SubOp;
+using mlinalg::transpose;
+using mlinalg::TransposeOp;
 using mlinalg::Vector;
 
 namespace {
@@ -52,6 +56,12 @@ concept SubAssignable = requires { std::declval<L>() -= std::declval<R>(); };
 
 template <typename L, typename R>
 concept MulAssignable = requires { std::declval<L>() *= std::declval<R>(); };
+
+template <typename X>
+concept Transposable = requires {
+    transpose(std::declval<X>());
+    conj_transpose(std::declval<X>());
+};
 
 /// Compare every coefficient against an expected row-major list.
 template <typename M> void expect_coeffs(const M& m, std::initializer_list<double> expected) {
@@ -106,6 +116,23 @@ static_assert(!Addable<M23, M23&> && !Addable<M23&, M23> && !Multipliable<double
 static_assert(!Multipliable<M23&&, M32&> && !Multipliable<M23&, const M32&&>);
 static_assert(Addable<AddOp<W23, W23>, M23&>);
 
+// Transposes are proxies too, with swapped shape traits.
+static_assert(std::is_same_v<decltype(transpose(std::declval<M23&>())), TransposeOp<W23>>);
+static_assert(
+    std::is_same_v<decltype(conj_transpose(std::declval<const M23&>())), ConjTransposeOp<W23>>);
+static_assert(std::is_same_v<decltype(transpose(std::declval<M23&>() + std::declval<M23&>())),
+                             TransposeOp<AddOp<W23, W23>>>);
+static_assert(expr_rows_v<decltype(transpose(std::declval<MX3&>()))> == 3 &&
+              expr_cols_v<decltype(transpose(std::declval<MX3&>()))> == Dynamic);
+
+// Temporary matrices would dangle, as with the binary operators.
+static_assert(Transposable<M23&> && Transposable<AddOp<W23, W23>> && !Transposable<M23>);
+
+// The transposed shape decides what an expression is compatible with.
+static_assert(Multipliable<M23&, TransposeOp<W23>> && !Addable<M23&, TransposeOp<W23>>);
+static_assert(std::is_convertible_v<TransposeOp<W23>, M32> &&
+              !std::is_convertible_v<TransposeOp<W23>, M23>);
+
 // Compound assignments return the left-hand side as an lvalue.
 static_assert(std::is_same_v<decltype(std::declval<MXX&>() += std::declval<MXX&>()), MXX&>);
 static_assert(std::is_same_v<decltype(std::declval<M23&>() -= std::declval<M23&>()), M23&>);
@@ -150,6 +177,14 @@ static_assert([] {
     a *= b;       // [[1, 1], [5, 5]]
     a *= 3.0;     // [[3, 3], [15, 15]]
     return a(0, 0) == 3.0 && a(0, 1) == 3.0 && a(1, 0) == 15.0 && a(1, 1) == 15.0;
+}());
+
+static_assert([] {
+    const M23 a{{1, 2, 3}, {4, 5, 6}};
+    const M32 t = transpose(a);
+    const M22 g = a * transpose(a); // Gram matrix: [[14, 32], [32, 77]]
+    return t(0, 1) == 4.0 && t(2, 0) == 3.0 && g(0, 0) == 14.0 && g(0, 1) == 32.0 &&
+           g(1, 0) == 32.0 && g(1, 1) == 77.0;
 }());
 
 // ------------------------------------------------------------------------------------------------
@@ -331,4 +366,118 @@ TEST(MatrixCompoundAssignment, Vectors) {
     EXPECT_EQ(v[0], -1.0);
     EXPECT_EQ(v[1], 0.0);
     EXPECT_EQ(v[2], 1.0);
+}
+
+// ------------------------------------------------------------------------------------------------
+// Transpose and conjugate transpose
+// ------------------------------------------------------------------------------------------------
+
+TEST(MatrixTranspose, SwapsRowsAndColumns) {
+    const MXX a{{1, 2, 3}, {4, 5, 6}};
+    const MXX t = transpose(a);
+    EXPECT_EQ(t.rows(), 3);
+    EXPECT_EQ(t.cols(), 2);
+    expect_coeffs(t, {1, 4, 2, 5, 3, 6});
+
+    const MXX back = transpose(transpose(a));
+    expect_coeffs(back, {1, 2, 3, 4, 5, 6});
+}
+
+TEST(MatrixTranspose, IsLazy) {
+    MXX        a{{1, 2}, {3, 4}};
+    const auto t     = transpose(a); // refers to a
+    a(0, 1)          = 20.0;
+    const MXX result = t;
+    expect_coeffs(result, {1, 3, 20, 4});
+}
+
+TEST(MatrixTranspose, AliasedAssignment) {
+    MXX square{{1, 2}, {3, 4}};
+    square = transpose(square);
+    expect_coeffs(square, {1, 3, 2, 4});
+
+    // A Dynamic matrix changes shape.
+    MXX wide{{1, 2, 3}, {4, 5, 6}};
+    wide = transpose(wide);
+    EXPECT_EQ(wide.rows(), 3);
+    EXPECT_EQ(wide.cols(), 2);
+    expect_coeffs(wide, {1, 4, 2, 5, 3, 6});
+}
+
+TEST(MatrixTranspose, CombinesWithOperators) {
+    const MXX a{{1, 2, 3}, {4, 5, 6}};
+    const MXX b{{7, 8}, {9, 10}, {11, 12}};
+
+    // (A * B)^T == B^T * A^T
+    const MXX lhs = transpose(a * b);
+    const MXX rhs = transpose(b) * transpose(a);
+    expect_coeffs(lhs, {58, 139, 64, 154});
+    expect_coeffs(rhs, {58, 139, 64, 154});
+
+    const MXX sum = a + 2.0 * transpose(b);
+    expect_coeffs(sum, {15, 20, 25, 20, 25, 30});
+
+    MXX c{{1, 1, 1}, {1, 1, 1}};
+    c += transpose(b);
+    expect_coeffs(c, {8, 10, 12, 9, 11, 13});
+}
+
+TEST(MatrixTranspose, Vectors) {
+    const VX x{1, 2, 3};
+    const VX y{4, 5, 6};
+    const RX row = transpose(x);
+    EXPECT_EQ(row.cols(), 3);
+    EXPECT_EQ(row[2], 3.0);
+
+    const Matrix<double, 1, 1> dot = transpose(x) * y;
+    EXPECT_DOUBLE_EQ(dot(0, 0), 32.0);
+
+    const MXX outer = x * transpose(y);
+    expect_coeffs(outer, {4, 5, 6, 8, 10, 12, 12, 15, 18});
+}
+
+TEST(MatrixTranspose, IntegerScalars) {
+    const Matrix<int, 2, 3> a{{1, 2, 3}, {4, 5, 6}};
+    const Matrix<int, 3, 2> t = transpose(a);
+    const Matrix<int, 3, 2> h = conj_transpose(a);
+    for (Index i = 0; i < 2; ++i) {
+        for (Index j = 0; j < 3; ++j) {
+            EXPECT_EQ(t(j, i), a(i, j));
+            EXPECT_EQ(h(j, i), a(i, j));
+        }
+    }
+}
+
+TEST(MatrixConjTranspose, RealScalarsMatchTranspose) {
+    const MXX a{{1, -2, 3}, {-4, 5, -6}};
+    const MXX h = conj_transpose(a);
+    expect_coeffs(h, {1, -4, -2, 5, 3, -6});
+}
+
+TEST(MatrixConjTranspose, ConjugatesComplexScalars) {
+    using C = std::complex<double>;
+    const Matrix<C, 2, 3> a{{C(1, 1), C(2, -3), C(0, 4)}, {C(5, 0), C(-1, 2), C(3, 3)}};
+    const Matrix<C, 3, 2> h = conj_transpose(a);
+    const Matrix<C, 3, 2> t = transpose(a);
+    for (Index i = 0; i < 2; ++i) {
+        for (Index j = 0; j < 3; ++j) {
+            EXPECT_EQ(h(j, i), std::conj(a(i, j)));
+            EXPECT_EQ(t(j, i), a(i, j));
+        }
+    }
+}
+
+TEST(MatrixConjTranspose, GramMatrixIsHermitian) {
+    using C = std::complex<double>;
+    const Matrix<C, Dynamic, Dynamic> a{
+        {C(1, 2), C(0, -1)}, {C(3, 0), C(2, 2)}, {C(-1, 1), C(4, 0)}};
+    const Matrix<C, Dynamic, Dynamic> g = conj_transpose(a) * a;
+    ASSERT_EQ(g.rows(), 2);
+    ASSERT_EQ(g.cols(), 2);
+    // Diagonal: squared column norms, real. Off-diagonal: conjugate pairs.
+    EXPECT_EQ(g(0, 0), C(16, 0)); // 5 + 9 + 2
+    EXPECT_EQ(g(1, 1), C(25, 0)); // 1 + 8 + 16
+    EXPECT_EQ(g(0, 1), std::conj(g(1, 0)));
+    // conj(1+2i)(-i) + 3(2+2i) + conj(-1+i)*4 = (-2-i) + (6+6i) + (-4-4i)
+    EXPECT_EQ(g(0, 1), C(0, 1));
 }
