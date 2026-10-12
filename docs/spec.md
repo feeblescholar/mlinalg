@@ -1,6 +1,6 @@
 # mlinalg specification
 
-_Note: This is the initial specification. Subject to change during the implementation._
+_Note: Subject to change during the implementation._
 
 **Target Standard:** C++20/23
 **Target Architectures:** x86_64 (AVX2 + FMA), ARM64 (NEON)
@@ -47,9 +47,11 @@ _Note: This is the initial specification. Subject to change during the implement
 
 *   **API Requirements:**
     *   Constructors: Default, sized (for dynamic), initializer list, and evaluation constructor (accepting an Expression Template).
-    *   Overloaded Operators: `+`, `-`, `*` (matrix-matrix and matrix-scalar). These must return AST Proxy objects, **not** evaluated matrices.
+    *   Overloaded Operators: `+`, `-`, `*`, `+=`, `-=`, `*=` (matrix-matrix and matrix-scalar for multiplication). These must return AST Proxy objects, **not** evaluated matrices.
     *   Assignment Operator (`operator=`): This is where the AST is evaluated and written to storage.
 *   **Functionality Set:**
+    *   `transpose()` and `conj_transpose()`: Transpose and conjugate transpose.
+    *   `lu()`: LU decomposition.
     *   `det()`: Determinant.
     *   `inv()`: Inverse.
     *   `norm1()`, `norm2()`, `norminf()`, `normF()` (Frobenius).
