@@ -350,6 +350,30 @@ template <StorageElement T, int Rows, int Cols>
 
 template <StorageElement T, int Rows, int Cols>
     requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::rank() const -> Index
+                 requires detail::RankScalar<T>
+{
+    if constexpr (detail::LuScalar<T>) {
+        // A and A^H have the same rank; rotate the smaller number of columns.
+        if (rows() >= cols()) {
+            return detail::numerical_rank(*this);
+        }
+        return detail::numerical_rank(Matrix<T, Cols, Rows>(conj_transpose(*this)));
+    } else {
+        return detail::bareiss_rank(*this);
+    }
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+             constexpr auto Matrix<T, Rows, Cols>::dim() const -> Index
+                 requires detail::RankScalar<T>
+{
+    return cols() - rank();
+}
+
+template <StorageElement T, int Rows, int Cols>
+    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
 constexpr auto Matrix<T, Rows, Cols>::index_of(Index row, Index col) const noexcept -> Index {
     assert(row >= 0 && row < rows() && col >= 0 && col < cols() &&
            "Matrix: coefficient index out of range");

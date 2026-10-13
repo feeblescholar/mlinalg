@@ -18,6 +18,7 @@
 #include "matrix_storage.hpp"
 #include "norms.hpp"
 #include "partial_piv_lu.hpp"
+#include "rank.hpp"
 
 #include <concepts>
 #include <initializer_list>
@@ -48,6 +49,11 @@ concept LuDecomposable = LuScalar<T> && SquareDims<Rows, Cols>;
 /// exactly through Bareiss elimination for signed integers.
 template <typename T, int Rows, int Cols>
 concept HasDeterminant = (LuScalar<T> || BareissScalar<T>) && SquareDims<Rows, Cols>;
+
+/// Scalars Matrix::rank() and dim() are offered for: a thresholded numerical rank for
+/// floating-point and complex scalars, an exact rank for signed integers.
+template <typename T>
+concept RankScalar = LuScalar<T> || BareissScalar<T>;
 
 /// An expression whose result can be stored in the matrix type M: same scalar type and
 /// statically compatible shape. Dynamic dimensions are checked at runtime.
@@ -200,6 +206,19 @@ class Matrix {
     /// Frobenius norm: the square root of the sum of squared magnitudes.
     [[nodiscard]] auto normF() const -> detail::real_t<T>
         requires detail::LuScalar<T>;
+
+    /// Rank: the dimension of the column space (equally, of the row space).
+    /// For floating-point and complex scalars this is the numerical rank, i.e. the number of
+    /// singular values above max(rows, cols) * epsilon * (largest singular value); see rank.hpp.
+    /// For signed integers it is exact (and usable in constant expressions), computed by Bareiss
+    /// elimination, which can overflow T; see bareiss.hpp.
+    [[nodiscard]] constexpr auto rank() const -> Index
+        requires detail::RankScalar<T>;
+
+    /// Dimension of the null space (kernel) {x : A * x = 0}, also called the nullity:
+    /// cols() - rank(), by the rank-nullity theorem.
+    [[nodiscard]] constexpr auto dim() const -> Index
+        requires detail::RankScalar<T>;
 
   private:
     [[nodiscard]] constexpr auto index_of(Index row, Index col) const noexcept -> Index;

@@ -30,7 +30,7 @@ template <NormScalar T> constexpr auto abs_squared(const T& value) -> real_t<T> 
 
 template <typename M>
     requires LuScalar<typename M::value_type>
-auto spectral_norm(M matrix) -> real_t<typename M::value_type> {
+void jacobi_orthogonalize_columns(M& matrix) {
     using T    = M::value_type;
     using Real = real_t<T>;
 
@@ -80,14 +80,26 @@ auto spectral_norm(M matrix) -> real_t<typename M::value_type> {
             break;
         }
     }
+}
 
-    Real largest{};
-    for (decltype(matrix.cols()) j = 0; j < cols; ++j) {
-        Real squared{};
-        for (decltype(matrix.rows()) i = 0; i < rows; ++i) {
-            squared += abs_squared(matrix(i, j));
-        }
-        largest = std::max(largest, squared);
+template <typename M>
+    requires LuScalar<typename M::value_type>
+auto squared_column_norm(const M& matrix, Index col) -> real_t<typename M::value_type> {
+    real_t<typename M::value_type> squared{};
+    for (Index row = 0; row < matrix.rows(); ++row) {
+        squared += abs_squared(matrix(row, col));
+    }
+    return squared;
+}
+
+template <typename M>
+    requires LuScalar<typename M::value_type>
+auto spectral_norm(M matrix) -> real_t<typename M::value_type> {
+    jacobi_orthogonalize_columns(matrix);
+
+    real_t<typename M::value_type> largest{};
+    for (Index col = 0; col < matrix.cols(); ++col) {
+        largest = std::max(largest, squared_column_norm(matrix, col));
     }
     return std::sqrt(largest);
 }

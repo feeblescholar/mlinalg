@@ -55,6 +55,46 @@ constexpr auto bareiss_determinant(M matrix) -> M::value_type {
     return negate ? -det : det;
 }
 
+template <typename M>
+    requires BareissScalar<typename M::value_type>
+constexpr auto bareiss_rank(M matrix) -> decltype(matrix.rows()) {
+    using T = M::value_type;
+
+    const auto rows = matrix.rows();
+    const auto cols = matrix.cols();
+
+    // TODO: compute in a wider type (see bareiss.hpp) to delay overflow.
+    T                       previous_pivot{1};
+    decltype(matrix.rows()) rank = 0; // also the row the next pivot goes to
+    for (decltype(matrix.cols()) col = 0; col < cols && rank < rows; ++col) {
+        auto pivot_row = rank;
+        while (pivot_row < rows && matrix(pivot_row, col) == T{0}) {
+            ++pivot_row;
+        }
+        if (pivot_row == rows) {
+            continue; // no pivot in this column: it depends on the columns before it
+        }
+        if (pivot_row != rank) {
+            // Columns before `col` are no longer read, so only the rest of the rows is swapped.
+            for (auto j = col; j < cols; ++j) {
+                std::swap(matrix(rank, j), matrix(pivot_row, j));
+            }
+        }
+
+        const T pivot = matrix(rank, col);
+        // Column-major: run down the columns. a(i, col) is only read here, never written.
+        for (auto j = col + 1; j < cols; ++j) {
+            const T arj = matrix(rank, j);
+            for (auto i = rank + 1; i < rows; ++i) {
+                matrix(i, j) = ((matrix(i, j) * pivot) - (matrix(i, col) * arj)) / previous_pivot;
+            }
+        }
+        previous_pivot = pivot;
+        ++rank;
+    }
+    return rank;
+}
+
 } // namespace mlinalg::detail
 
 #endif // BAREISS_IPP

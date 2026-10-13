@@ -1,12 +1,13 @@
 #ifndef NORMS_HPP
 #define NORMS_HPP
 
-// Module 4: building blocks of the matrix norms (Matrix::norm1, norm2, norminf, normF).
+// Module 4: building blocks of the matrix norms (Matrix::norm1, norm2, norminf, normF) and of the
+// numerical rank (rank.hpp).
 //
-// The spectral norm (largest singular value) is computed with one-sided Jacobi rotations
-// (Hestenes): pairs of columns are rotated until all columns are mutually orthogonal. The columns
-// then have the singular values as their lengths. The method is deterministic and accurate, and
-// each sweep over all column pairs costs O(rows * cols^2).
+// Singular values are computed with one-sided Jacobi rotations (Hestenes): pairs of columns are
+// rotated until all columns are mutually orthogonal. The columns then have the singular values as
+// their lengths. The method is deterministic and accurate, and each sweep over all column pairs
+// costs O(rows * cols^2).
 //
 // Squared magnitudes are accumulated without scaling, so coefficients whose square overflows or
 // underflows the real type (beyond roughly 1e+-154 for double) give inaccurate results.
@@ -40,6 +41,19 @@ template <NormScalar T> [[nodiscard]] constexpr auto abs_value(const T& value) -
 
 /// |value|^2, without a square root for complex scalars.
 template <NormScalar T> [[nodiscard]] constexpr auto abs_squared(const T& value) -> real_t<T>;
+
+/// One-sided Jacobi: rotates the columns of `matrix` in place until they are mutually orthogonal.
+/// Afterwards the Euclidean lengths of the columns are the singular values of the original
+/// matrix, in no particular order.
+template <typename M>
+    requires LuScalar<typename M::value_type>
+void jacobi_orthogonalize_columns(M& matrix);
+
+/// Squared Euclidean length of column `col`.
+template <typename M>
+    requires LuScalar<typename M::value_type>
+[[nodiscard]] auto squared_column_norm(const M& matrix,
+                                       Index    col) -> real_t<typename M::value_type>;
 
 /// Largest singular value of `matrix`, which is taken by value and used as scratch space.
 /// Fastest when the matrix has no more columns than rows.
