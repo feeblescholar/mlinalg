@@ -111,7 +111,7 @@ class Matrix {
     /// Vector initialization from a flat list of coefficients: Vector<double> v{1, 2, 3}.
     /// A fixed length must match.
     constexpr Matrix(std::initializer_list<T> coeffs)
-        requires IsVector;
+        requires(IsVector);
 
     /// Evaluation constructor: computes every coefficient of `expr`.
     /// Implicit so that `Matrix c = a + b;` works.

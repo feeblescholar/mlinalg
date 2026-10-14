@@ -51,7 +51,7 @@ template <StorageElement T, int Rows, int Cols>
     requires detail::ValidDim<Rows> &&
              detail::ValidDim<Cols>
              constexpr Matrix<T, Rows, Cols>::Matrix(std::initializer_list<T> coeffs)
-                 requires IsVector
+                 requires(IsVector)
     : m_storage(Rows == 1 ? 1 : static_cast<Index>(coeffs.size()),
                 Rows == 1 ? static_cast<Index>(coeffs.size()) : 1) {
     std::ranges::copy(coeffs, m_storage.begin());
