@@ -11,6 +11,7 @@
 // computing results. Expressions are evaluated only when they are assigned to a Matrix, either
 // through the evaluation constructor or through operator=.
 
+#include "ast/eval_tree.hpp"
 #include "ast/expr_traits.hpp"
 #include "ast/matrix_wrapper.hpp"
 #include "bareiss.hpp"

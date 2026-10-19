@@ -63,9 +63,11 @@ template <StorageElement T, int Rows, int Cols>
                  requires detail::EvaluableTo<E, Matrix<T, Rows, Cols>>
 constexpr Matrix<T, Rows, Cols>::Matrix(const E& expr) : m_storage(expr.rows(), expr.cols()) {
     // Naive coefficient-wise evaluation; Module 5 replaces it with the vectorized evaluator.
+    // Product operands that are expressions are evaluated into temporaries first (eval_tree.hpp).
+    const auto tree = detail::make_eval_tree(expr);
     for (Index col = 0; col < cols(); ++col) {
         for (Index row = 0; row < rows(); ++row) {
-            m_storage[index_of(row, col)] = expr.coeff(row, col);
+            m_storage[index_of(row, col)] = tree.coeff(row, col);
         }
     }
 }
