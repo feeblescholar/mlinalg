@@ -16,6 +16,7 @@ using mlinalg::Index;
 using mlinalg::Matrix;
 using mlinalg::MatrixWrapper;
 using mlinalg::MulOp;
+using mlinalg::OwnedMatrix;
 using mlinalg::RowVector;
 using mlinalg::ScalarMulOp;
 using mlinalg::SubOp;
@@ -111,10 +112,19 @@ static_assert(!Addable<M23&, MF23&> && !Multipliable<M23&, Matrix<float, 3, 2>&>
 static_assert(!Multipliable<int, M23&> && !Multipliable<M23&, float>);
 static_assert(Multipliable<float, MF23&> && Multipliable<double, M23&>);
 
-// Temporary matrices would dangle; temporary expressions are copied into the node.
-static_assert(!Addable<M23, M23&> && !Addable<M23&, M23> && !Multipliable<double, M23>);
-static_assert(!Multipliable<M23&&, M32&> && !Multipliable<M23&, const M32&&>);
+// Temporary matrices are moved into the expression, which owns them (a const one is copied);
+// temporary expressions are copied into the node.
+static_assert(std::is_same_v<decltype(std::declval<M23>() + std::declval<M23&>()),
+                             AddOp<OwnedMatrix<M23>, W23>>);
+static_assert(std::is_same_v<decltype(std::declval<M23&>() - std::declval<M23>()),
+                             SubOp<W23, OwnedMatrix<M23>>>);
+static_assert(std::is_same_v<decltype(std::declval<M23&&>() * std::declval<const M32&&>()),
+                             MulOp<OwnedMatrix<M23>, OwnedMatrix<M32>>>);
+static_assert(std::is_same_v<decltype(2.0 * std::declval<M23>()), ScalarMulOp<OwnedMatrix<M23>>>);
 static_assert(Addable<AddOp<W23, W23>, M23&>);
+
+// Owning an operand does not relax the shape and scalar type checks.
+static_assert(!Addable<M23, M32> && !Multipliable<M23, M23&> && !Addable<M23, MF23>);
 
 // Transposes are proxies too, with swapped shape traits.
 static_assert(std::is_same_v<decltype(transpose(std::declval<M23&>())), TransposeOp<W23>>);
@@ -125,8 +135,10 @@ static_assert(std::is_same_v<decltype(transpose(std::declval<M23&>() + std::decl
 static_assert(expr_rows_v<decltype(transpose(std::declval<MX3&>()))> == 3 &&
               expr_cols_v<decltype(transpose(std::declval<MX3&>()))> == Dynamic);
 
-// Temporary matrices would dangle, as with the binary operators.
-static_assert(Transposable<M23&> && Transposable<AddOp<W23, W23>> && !Transposable<M23>);
+// Temporary matrices are owned, as with the binary operators.
+static_assert(Transposable<M23&> && Transposable<AddOp<W23, W23>> && Transposable<M23>);
+static_assert(
+    std::is_same_v<decltype(transpose(std::declval<M23>())), TransposeOp<OwnedMatrix<M23>>>);
 
 // The transposed shape decides what an expression is compatible with.
 static_assert(Multipliable<M23&, TransposeOp<W23>> && !Addable<M23&, TransposeOp<W23>>);
@@ -307,6 +319,59 @@ TEST(MatrixOperators, ChainedProductAliasedAssignment) {
     expect_coeffs(a, {1, 3, 0, 1});
     a = transpose(a * a) * a; // [[1, 0], [6, 1]] * [[1, 3], [0, 1]]
     expect_coeffs(a, {1, 3, 6, 19});
+}
+
+TEST(MatrixOperators, TemporaryMatrixOperands) {
+    const MXX a{{4, 7, 2}, {3, 6, 1}, {2, 5, 3}};
+    const MXX identity = a * a.inv();
+    for (Index i = 0; i < 3; ++i) {
+        for (Index j = 0; j < 3; ++j) {
+            EXPECT_NEAR(identity(i, j), i == j ? 1.0 : 0.0, 1e-12)
+                << "at (" << i << ", " << j << ")";
+        }
+    }
+
+    const M22 b{{1, 2}, {3, 4}};
+    const M22 c = b.inv() * b + transpose(M22{{1, 2}, {3, 4}}) - 2.0 * M22{{1, 0}, {0, 1}};
+    expect_coeffs(c, {0, 3, 2, 3}); // I + b^T - 2I
+}
+
+TEST(MatrixOperators, ExpressionOwnsTemporaryOperands) {
+    // The temporaries die at the end of each statement; the expressions keep their own copies.
+    const MXX  a{{1, 2}, {3, 4}};
+    const auto twice   = [&a] { return MXX(a + a); };
+    const auto sum     = MXX{{10, 20}, {30, 40}} + a;
+    const auto product = a * twice();
+    const MXX  s       = sum;
+    const MXX  p       = product;
+    expect_coeffs(s, {11, 22, 33, 44});
+    expect_coeffs(p, {14, 20, 30, 44});
+}
+
+TEST(MatrixOperators, TemporaryOperandIsMovedNotCopied) {
+    MXX           big(8, 8); // above the small buffer, so the coefficients live on the heap
+    const double* coeffs = big.data();
+    const MXX     a(8, 8);
+    const auto    expr = std::move(big) * a;
+    EXPECT_EQ(&expr.lhs().matrix()(0, 0), coeffs);
+}
+
+TEST(MatrixOperators, ChainedTemporaryOperands) {
+    const M22 a{{2, 1}, {1, 1}}; // inverse [[1, -1], [-1, 2]]
+    const M22 b{{1, 2}, {3, 4}};
+    // a^-1 * (b * a) * a^-1 = a^-1 * b
+    const M22 r     = a.inv() * (b * a) * a.inv();
+    const M22 a_inv = a.inv();
+    const M22 ref   = a_inv * b;
+    for (Index i = 0; i < 2; ++i) {
+        for (Index j = 0; j < 2; ++j) {
+            EXPECT_NEAR(r(i, j), ref(i, j), 1e-12) << "at (" << i << ", " << j << ")";
+        }
+    }
+
+    MXX m{{1, 1}, {0, 1}};
+    m *= m.inv() * m; // m * (m^-1 * m) = m
+    expect_coeffs(m, {1, 1, 0, 1});
 }
 
 TEST(MatrixOperators, Vectors) {
