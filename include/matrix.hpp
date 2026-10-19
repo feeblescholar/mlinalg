@@ -14,6 +14,7 @@
 #include "ast/eval_tree.hpp"
 #include "ast/expr_traits.hpp"
 #include "ast/matrix_wrapper.hpp"
+#include "ast/owned_matrix.hpp"
 #include "bareiss.hpp"
 #include "matrix_operators.hpp"
 #include "matrix_storage.hpp"
@@ -59,18 +60,20 @@ concept RankScalar = LuScalar<T> || BareissScalar<T>;
 /// An expression whose result can be stored in the matrix type M: same scalar type and
 /// statically compatible shape. Dynamic dimensions are checked at runtime.
 ///
-/// M and MatrixWrapper<M> are excluded before Expression is checked, because Expression requires
-/// copy_constructibility, which recurses into M's evaluation constructor:
+/// M, MatrixWrapper<M> and OwnedMatrix<M> are excluded before Expression is checked, because
+/// Expression requires copy_constructibility, which recurses into M's evaluation constructor:
 ///   * Expression<M> checks copy_constructible<M>, whose overload set contains the evaluation
 ///     constructor with E = M.
 ///   * Expression<MatrixWrapper<M>> checks copy_constructible<MatrixWrapper<M>>, which considers
-///     the conversion MatrixWrapper<M> -> M through the evaluation constructor.
-/// Neither is an expression to evaluate: both are plain copies.
+///     the conversion MatrixWrapper<M> -> M through the evaluation constructor. The same holds for
+///     OwnedMatrix<M>.
+/// None of them is an expression to evaluate: they are plain copies.
 template <typename E, typename M>
-concept EvaluableTo = !std::same_as<E, M> && !std::same_as<E, MatrixWrapper<M>> && Expression<E> &&
-                      std::same_as<expr_scalar_t<E>, typename M::value_type> &&
-                      dims_compatible(expr_rows_v<E>, M::RowsAtCompileTime) &&
-                      dims_compatible(expr_cols_v<E>, M::ColsAtCompileTime);
+concept EvaluableTo =
+    !std::same_as<E, M> && !std::same_as<E, MatrixWrapper<M>> && !std::same_as<E, OwnedMatrix<M>> &&
+    Expression<E> && std::same_as<expr_scalar_t<E>, typename M::value_type> &&
+    dims_compatible(expr_rows_v<E>, M::RowsAtCompileTime) &&
+    dims_compatible(expr_cols_v<E>, M::ColsAtCompileTime);
 
 } // namespace detail
 

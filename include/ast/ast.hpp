@@ -9,6 +9,7 @@
 #include "expr_traits.hpp"       // IWYU pragma: export
 #include "matrix_wrapper.hpp"    // IWYU pragma: export
 #include "mul_op.hpp"            // IWYU pragma: export
+#include "owned_matrix.hpp"      // IWYU pragma: export
 #include "scalar_mul_op.hpp"     // IWYU pragma: export
 #include "sub_op.hpp"            // IWYU pragma: export
 #include "temporary.hpp"         // IWYU pragma: export

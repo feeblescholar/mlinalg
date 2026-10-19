@@ -17,7 +17,8 @@ constexpr auto as_expr(X&& operand) -> operand_expr_t<X> {
     if constexpr (Expression<std::remove_cvref_t<X>>) {
         return std::forward<X>(operand);
     } else {
-        return MatrixWrapper<std::remove_cvref_t<X>>(operand);
+        // MatrixWrapper refers to an lvalue; OwnedMatrix takes over (moves) a temporary.
+        return operand_expr_t<X>(std::forward<X>(operand));
     }
 }
 

@@ -6,9 +6,11 @@
 //
 // The binary operators and the transposes never evaluate anything: they return proxy objects that
 // are evaluated when they are assigned to a Matrix. An operand is either
-//   * an AST expression, which is copied into the new node, or
-//   * a concrete matrix (MatrixLeaf), which is wrapped in a non-owning MatrixWrapper. It must be an
-//     lvalue that outlives the expression; temporaries are rejected to prevent dangling.
+//   * an AST expression, which is copied into the new node,
+//   * a matrix lvalue (MatrixLeaf), which is wrapped in a non-owning MatrixWrapper and must outlive
+//     the expression, or
+//   * a temporary matrix, e.g. a * a.inv(), which is moved into an OwnedMatrix so the expression
+//     owns it and nothing dangles. Copying such an expression copies the matrix.
 //
 // Scalars must have exactly the expression's ScalarType: 2.0 * a is valid for a double matrix,
 // 2 * a and 2.0f * a are not.
@@ -30,11 +32,10 @@ namespace detail {
 template <typename X>
 concept MatrixOperand = MatrixLeaf<std::remove_cvref_t<X>> && !Expression<std::remove_cvref_t<X>>;
 
-/// A forwarded operand (X as deduced from X&&) that can be stored in an AST node: any expression,
-/// or a matrix lvalue. A matrix rvalue would leave the expression dangling.
+/// A forwarded operand (X as deduced from X&&) that can be stored in an AST node: any expression or
+/// matrix. Matrix lvalues are referred to, matrix rvalues are owned.
 template <typename X>
-concept BindableOperand =
-    Expression<std::remove_cvref_t<X>> || (MatrixOperand<X> && std::is_lvalue_reference_v<X>);
+concept BindableOperand = Expression<std::remove_cvref_t<X>> || MatrixOperand<X>;
 
 /// The AST node type an operand turns into.
 template <typename X> struct operand_expr;
@@ -46,9 +47,15 @@ struct operand_expr<X> {
 };
 
 template <typename X>
-    requires MatrixOperand<X>
+    requires MatrixOperand<X> && std::is_lvalue_reference_v<X>
 struct operand_expr<X> {
     using type = MatrixWrapper<std::remove_cvref_t<X>>;
+};
+
+template <typename X>
+    requires MatrixOperand<X> && (!std::is_lvalue_reference_v<X>)
+struct operand_expr<X> {
+    using type = OwnedMatrix<std::remove_cvref_t<X>>;
 };
 
 template <typename X> using operand_expr_t = operand_expr<X>::type;
