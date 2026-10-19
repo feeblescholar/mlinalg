@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <initializer_list>
 #include <type_traits>
+#include <vector>
 
 using mlinalg::AddOp;
 using mlinalg::Dynamic;
@@ -17,6 +18,9 @@ using mlinalg::MatrixWrapper;
 using mlinalg::MulOp;
 using mlinalg::ScalarMulOp;
 using mlinalg::SubOp;
+using mlinalg::Temporary;
+using mlinalg::detail::eval_tree_t;
+using mlinalg::detail::make_eval_tree;
 
 namespace {
 
@@ -47,6 +51,23 @@ template <typename T, int Rows, int Cols> class TestMatrix {
 
   private:
     mlinalg::MatrixStorage<T, Rows, Cols> m_storage;
+};
+
+/// TestMatrix that counts how often its coefficients are read.
+template <typename T, int Rows, int Cols> class CountingMatrix : public TestMatrix<T, Rows, Cols> {
+  public:
+    using TestMatrix<T, Rows, Cols>::TestMatrix;
+
+    [[nodiscard]] constexpr auto operator()(Index row, Index col) const -> const T& {
+        ++m_reads;
+        return TestMatrix<T, Rows, Cols>::operator()(row, col);
+    }
+
+    [[nodiscard]] constexpr auto reads() const -> Index { return m_reads; }
+    constexpr void               reset_reads() const { m_reads = 0; }
+
+  private:
+    mutable Index m_reads = 0;
 };
 
 using M23  = TestMatrix<double, 2, 3>;
@@ -236,4 +257,135 @@ TEST(Ast, ComplexScalars) {
     // (1+i)*2 + (2i)*(-i) = 2 + 2i + 2
     EXPECT_EQ(product.coeff(0, 0), C(4, 2));
     EXPECT_EQ(ScalarMulOp(C(0, 1), WMC{a}).coeff(0, 0), C(-1, 1));
+}
+
+// ------------------------------------------------------------------------------------------------
+// Evaluation tree: product operands that are expressions become temporaries
+// ------------------------------------------------------------------------------------------------
+
+namespace {
+
+using M22 = TestMatrix<double, 2, 2>;
+using M33 = TestMatrix<double, 3, 3>;
+using W22 = MatrixWrapper<M22>;
+using W33 = MatrixWrapper<M33>;
+
+} // namespace
+
+static_assert(Expression<Temporary<double, 2, 3>> && Expression<Temporary<double, Dynamic, 3>>);
+static_assert(has_traits<Temporary<double, Dynamic, 3>, Dynamic, 3, double>);
+
+// Leaves and products of leaves are kept as they are.
+static_assert(std::is_same_v<eval_tree_t<W23>, W23>);
+static_assert(std::is_same_v<eval_tree_t<MulOp<W23, W34>>, MulOp<W23, W34>>);
+static_assert(
+    std::is_same_v<eval_tree_t<AddOp<W23, SubOp<W23, W23>>>, AddOp<W23, SubOp<W23, W23>>>);
+
+// (A + B) * C: A + B is evaluated, C is forwarded.
+static_assert(
+    std::is_same_v<eval_tree_t<MulOp<AddOp<W23, W23>, W34>>, MulOp<Temporary<double, 2, 3>, W34>>);
+
+// (A - B) + C * (D * E): only D * E is evaluated; the sum and the outer product stay lazy.
+static_assert(std::is_same_v<eval_tree_t<AddOp<SubOp<W22, W22>, MulOp<W22, MulOp<W22, W22>>>>,
+                             AddOp<SubOp<W22, W22>, MulOp<W22, Temporary<double, 2, 2>>>>);
+
+// ((A + B) * C) * (D - E + F): every product operand is evaluated, including the nested A + B.
+static_assert(
+    std::is_same_v<eval_tree_t<MulOp<MulOp<AddOp<W22, W22>, W22>, AddOp<SubOp<W22, W22>, W22>>>,
+                   MulOp<Temporary<double, 2, 2>, Temporary<double, 2, 2>>>);
+
+// A * B * C * D: T2 = (T1 = A * B) * C, then T2 * D with D forwarded.
+static_assert(std::is_same_v<eval_tree_t<MulOp<MulOp<MulOp<W22, W22>, W22>, W22>>,
+                             MulOp<Temporary<double, 2, 2>, W22>>);
+
+// Scalings and transposes are product operands like any other expression; a product below them
+// is evaluated only if it is itself the operand of a product.
+static_assert(std::is_same_v<eval_tree_t<MulOp<ScalarMulOp<W22>, mlinalg::TransposeOp<W22>>>,
+                             MulOp<Temporary<double, 2, 2>, Temporary<double, 2, 2>>>);
+static_assert(std::is_same_v<eval_tree_t<mlinalg::TransposeOp<MulOp<W22, MulOp<W22, W22>>>>,
+                             mlinalg::TransposeOp<MulOp<W22, Temporary<double, 2, 2>>>>);
+
+// Dynamic dimensions carry over to the temporary.
+static_assert(std::is_same_v<eval_tree_t<MulOp<MulOp<WX3, W34>, WXX>>,
+                             MulOp<Temporary<double, Dynamic, 4>, WXX>>);
+
+static_assert([] {
+    const M22 a(2, 2, {1, 2, 3, 4});
+    const M22 b(2, 2, {0, 1, 1, 0});
+
+    // (a + b) * (a * b), with both operands evaluated at compile time.
+    const auto tree = make_eval_tree(MulOp(AddOp(W22{a}, W22{b}), MulOp(W22{a}, W22{b})));
+    // a + b = [[1, 3], [4, 4]], a * b = [[2, 1], [4, 3]]
+    return tree.coeff(0, 0) == 14.0 && tree.coeff(0, 1) == 10.0 && tree.coeff(1, 0) == 24.0 &&
+           tree.coeff(1, 1) == 16.0;
+}());
+
+TEST(Temporary, StoresEvaluatedCoefficients) {
+    const MXX                                 a(2, 3, {1, 2, 3, 4, 5, 6});
+    const Temporary<double, Dynamic, Dynamic> t(ScalarMulOp(2.0, WXX{a}));
+    EXPECT_EQ(t.rows(), 2);
+    EXPECT_EQ(t.cols(), 3);
+    expect_coeffs(t, {2, 4, 6, 8, 10, 12});
+}
+
+TEST(EvalTree, ChainedProductReadsEachOperandOncePerProduct) {
+    using CXX         = CountingMatrix<double, Dynamic, Dynamic>;
+    using CW          = MatrixWrapper<CXX>;
+    constexpr Index n = 4;
+    const CXX       a(n, n, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    const CXX       b(n, n, {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1});
+    const CXX       c(n, n, {2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2});
+    const MulOp     expr(MulOp(CW{a}, CW{b}), CW{c}); // (a * b) * c = 2a
+
+    // Naively, every coefficient of the result recomputes a row of a * b: n^4 reads of a.
+    std::vector<double> naive;
+    for (Index i = 0; i < n; ++i) {
+        for (Index j = 0; j < n; ++j) {
+            naive.push_back(expr.coeff(i, j));
+        }
+    }
+    EXPECT_EQ(a.reads(), n * n * n * n);
+    a.reset_reads();
+    c.reset_reads();
+
+    // With the temporary, a * b is computed once (n^3 reads of a), and c is read directly.
+    const auto tree = make_eval_tree(expr);
+    EXPECT_EQ(a.reads(), n * n * n);
+    EXPECT_EQ(c.reads(), 0);
+    expect_coeffs(tree, {2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32});
+    EXPECT_EQ(a.reads(), n * n * n);
+    EXPECT_EQ(c.reads(), n * n * n);
+    for (Index i = 0; i < n; ++i) {
+        for (Index j = 0; j < n; ++j) {
+            EXPECT_DOUBLE_EQ(tree.coeff(i, j), naive[static_cast<std::size_t>((i * n) + j)]);
+        }
+    }
+}
+
+TEST(EvalTree, SumOperandIsEvaluatedOnce) {
+    using CXX = CountingMatrix<double, Dynamic, Dynamic>;
+    using CW  = MatrixWrapper<CXX>;
+    const CXX a(2, 3, {1, 2, 3, 4, 5, 6});
+    const CXX b(2, 3, {1, 1, 1, 1, 1, 1});
+    const CXX c(3, 2, {1, 0, 0, 1, 1, 1});
+
+    // (a + b) * c: one read per coefficient of a while building the temporary, none afterwards.
+    const auto tree = make_eval_tree(MulOp(AddOp(CW{a}, CW{b}), CW{c}));
+    EXPECT_EQ(a.reads(), 6);
+    // a + b = [[2, 3, 4], [5, 6, 7]]
+    expect_coeffs(tree, {6, 7, 12, 13});
+    EXPECT_EQ(a.reads(), 6);
+}
+
+TEST(EvalTree, LazyNodesOutsideProductsAreKept) {
+    using CXX = CountingMatrix<double, Dynamic, Dynamic>;
+    using CW  = MatrixWrapper<CXX>;
+    const CXX a(2, 2, {1, 2, 3, 4});
+    const CXX b(2, 2, {1, 1, 1, 1});
+
+    // a - b is not a product operand, so it is evaluated per coefficient, not up front.
+    const auto tree = make_eval_tree(AddOp(SubOp(CW{a}, CW{b}), MulOp(CW{a}, CW{b})));
+    EXPECT_EQ(a.reads(), 0);
+    expect_coeffs(tree, {3, 4, 9, 10}); // [[0, 1], [2, 3]] + [[3, 3], [7, 7]]
+    EXPECT_EQ(a.reads(), 4 + 8);        // a - b once per coefficient, a * b two reads each
 }

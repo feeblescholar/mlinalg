@@ -265,6 +265,50 @@ TEST(MatrixOperators, AliasedAssignment) {
     expect_coeffs(a, {9.5, 11, 21.5, 25});
 }
 
+TEST(MatrixOperators, ChainedProductsMatchStepwiseEvaluation) {
+    const MXX a{{1, 2, 3}, {4, 5, 6}};            // 2 x 3
+    const M32 b{{1, -1}, {0, 2}, {3, 1}};         // 3 x 2
+    const MXX c{{2, 0, 1, -1}, {1, 3, 0, 2}};     // 2 x 4
+    const MXX d{{1, 0}, {0, 1}, {2, 2}, {1, -1}}; // 4 x 2
+
+    // A * B * C * D, left to right.
+    const MXX ab    = a * b;
+    const MXX abc   = ab * c;
+    const MXX abcd  = abc * d;
+    const M22 chain = a * b * c * d;
+    ASSERT_EQ(abcd.rows(), 2);
+    ASSERT_EQ(abcd.cols(), 2);
+    for (Index i = 0; i < 2; ++i) {
+        for (Index j = 0; j < 2; ++j) {
+            EXPECT_DOUBLE_EQ(chain(i, j), abcd(i, j)) << "at (" << i << ", " << j << ")";
+        }
+    }
+
+    // ((A + A) * B) * (C - C + C) * D: sums and differences as product operands.
+    const MXX nested = ((a + a) * b) * (c - c + c) * d;
+    for (Index i = 0; i < 2; ++i) {
+        for (Index j = 0; j < 2; ++j) {
+            EXPECT_DOUBLE_EQ(nested(i, j), 2.0 * abcd(i, j)) << "at (" << i << ", " << j << ")";
+        }
+    }
+
+    // (A * B - A * B) + A * (B * (C * D)): the nested product on the right is evaluated first.
+    const MXX right = a * b - a * b + a * (b * (c * d));
+    for (Index i = 0; i < 2; ++i) {
+        for (Index j = 0; j < 2; ++j) {
+            EXPECT_DOUBLE_EQ(right(i, j), abcd(i, j)) << "at (" << i << ", " << j << ")";
+        }
+    }
+}
+
+TEST(MatrixOperators, ChainedProductAliasedAssignment) {
+    MXX a{{1, 1}, {0, 1}};
+    a = a * a * a; // [[1, 3], [0, 1]]
+    expect_coeffs(a, {1, 3, 0, 1});
+    a = transpose(a * a) * a; // [[1, 0], [6, 1]] * [[1, 3], [0, 1]]
+    expect_coeffs(a, {1, 3, 6, 19});
+}
+
 TEST(MatrixOperators, Vectors) {
     const MXX m{{1, 2}, {3, 4}};
     const VX  x{1, -1};
