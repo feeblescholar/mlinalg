@@ -10,6 +10,11 @@ constexpr auto make_eval_tree(const MatrixWrapper<M>& expr) -> MatrixWrapper<M> 
     return expr;
 }
 
+template <MatrixLeaf M>
+constexpr auto make_eval_tree(const OwnedMatrix<M>& expr) -> MatrixWrapper<M> {
+    return MatrixWrapper<M>(expr.matrix());
+}
+
 template <typename L, typename R>
 constexpr auto make_eval_tree(const AddOp<L, R>& expr) -> eval_tree_t<AddOp<L, R>> {
     return {make_eval_tree(expr.lhs()), make_eval_tree(expr.rhs())};
@@ -42,7 +47,7 @@ constexpr auto make_eval_tree(const ConjTransposeOp<E>& expr) -> eval_tree_t<Con
 
 template <typename E> constexpr auto make_product_operand(const E& expr) -> product_operand_t<E> {
     if constexpr (is_direct_operand_v<E>) {
-        return expr;
+        return make_eval_tree(expr);
     } else {
         // The subtree is rewritten first, so products nested inside it get their own Temporary.
         return product_operand_t<E>(make_eval_tree(expr));

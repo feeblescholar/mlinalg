@@ -6,7 +6,8 @@
 // MulOp::coeff reads every operand coefficient once per dot product, so a product operand that is
 // an expression would be recomputed lhs.rows() or rhs.cols() times, and chained products blow up
 // to O(N^k). Right before evaluation, every MulOp operand is checked:
-//   * a MatrixWrapper is forwarded as it is (by reference),
+//   * a leaf is forwarded by reference: a MatrixWrapper as it is, an OwnedMatrix (a temporary
+//     matrix operand) as a MatrixWrapper to the matrix it owns, so it is never copied,
 //   * any other expression is evaluated, together with its whole subtree, into a Temporary.
 // Every other node is rebuilt with its rewritten children and stays lazy. For example:
 //   (A + B) * C            ->  Temporary(A + B) * C
@@ -21,6 +22,7 @@
 #include "expr_traits.hpp"
 #include "matrix_wrapper.hpp"
 #include "mul_op.hpp"
+#include "owned_matrix.hpp"
 #include "scalar_mul_op.hpp"
 #include "sub_op.hpp"
 #include "temporary.hpp"
@@ -40,12 +42,19 @@ template <typename E> inline constexpr bool is_direct_operand_v = false;
 
 template <MatrixLeaf M> inline constexpr bool is_direct_operand_v<MatrixWrapper<M>> = true;
 
+template <MatrixLeaf M> inline constexpr bool is_direct_operand_v<OwnedMatrix<M>> = true;
+
 /// The rewritten type of a MulOp operand E.
 template <typename E>
 using product_operand_t =
-    std::conditional_t<is_direct_operand_v<E>, E, temporary_for_t<eval_tree_t<E>>>;
+    std::conditional_t<is_direct_operand_v<E>, eval_tree_t<E>, temporary_for_t<eval_tree_t<E>>>;
 
 template <MatrixLeaf M> struct eval_tree<MatrixWrapper<M>> {
+    using type = MatrixWrapper<M>;
+};
+
+/// Refers to the matrix owned by the expression, which outlives its evaluation tree.
+template <MatrixLeaf M> struct eval_tree<OwnedMatrix<M>> {
     using type = MatrixWrapper<M>;
 };
 
@@ -76,6 +85,10 @@ template <typename E> struct eval_tree<ConjTransposeOp<E>> {
 /// Builds the evaluation tree of `expr`, computing the Temporaries it needs.
 template <MatrixLeaf M>
 [[nodiscard]] constexpr auto make_eval_tree(const MatrixWrapper<M>& expr) -> MatrixWrapper<M>;
+
+/// The result refers to expr's matrix, so expr must outlive it.
+template <MatrixLeaf M>
+[[nodiscard]] constexpr auto make_eval_tree(const OwnedMatrix<M>& expr) -> MatrixWrapper<M>;
 
 template <typename L, typename R>
 [[nodiscard]] constexpr auto make_eval_tree(const AddOp<L, R>& expr) -> eval_tree_t<AddOp<L, R>>;

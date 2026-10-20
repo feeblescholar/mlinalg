@@ -389,3 +389,47 @@ TEST(EvalTree, LazyNodesOutsideProductsAreKept) {
     expect_coeffs(tree, {3, 4, 9, 10}); // [[0, 1], [2, 3]] + [[3, 3], [7, 7]]
     EXPECT_EQ(a.reads(), 4 + 8);        // a - b once per coefficient, a * b two reads each
 }
+
+// ------------------------------------------------------------------------------------------------
+// OwnedMatrix: a temporary matrix operand owned by the expression
+// ------------------------------------------------------------------------------------------------
+
+namespace {
+
+using O22 = mlinalg::OwnedMatrix<M22>;
+using OXX = mlinalg::OwnedMatrix<MXX>;
+
+} // namespace
+
+static_assert(Expression<O22> && Expression<OXX>);
+static_assert(has_traits<O22, 2, 2, double> && has_traits<OXX, Dynamic, Dynamic, double>);
+
+// In the evaluation tree an owned matrix is referred to like any matrix, never copied or evaluated.
+static_assert(std::is_same_v<eval_tree_t<O22>, W22>);
+static_assert(
+    std::is_same_v<eval_tree_t<MulOp<O22, AddOp<O22, W22>>>, MulOp<W22, Temporary<double, 2, 2>>>);
+
+static_assert([] {
+    const M22   a(2, 2, {1, 2, 3, 4});
+    const MulOp expr(O22(M22(2, 2, {0, 1, 1, 0})), W22{a}); // swaps the rows of a
+    return expr.coeff(0, 0) == 3.0 && make_eval_tree(expr).coeff(1, 1) == 2.0;
+}());
+
+TEST(OwnedMatrix, OwnsItsMatrix) {
+    const OXX owned(MXX(2, 2, {1, 2, 3, 4}));
+    EXPECT_EQ(owned.rows(), 2);
+    EXPECT_EQ(owned.cols(), 2);
+    expect_coeffs(owned, {1, 2, 3, 4});
+
+    const OXX copy = owned; // copies the matrix
+    EXPECT_NE(&copy.matrix(), &owned.matrix());
+    expect_coeffs(copy, {1, 2, 3, 4});
+}
+
+TEST(EvalTree, OwnedOperandIsReferredTo) {
+    const MXX   b(2, 2, {1, 0, 0, 1});
+    const MulOp expr(OXX(MXX(2, 2, {1, 2, 3, 4})), WXX{b});
+    const auto  tree = make_eval_tree(expr);
+    EXPECT_EQ(&tree.lhs().matrix(), &expr.lhs().matrix());
+    expect_coeffs(tree, {1, 2, 3, 4});
+}
