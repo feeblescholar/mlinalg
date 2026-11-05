@@ -40,9 +40,8 @@ only; it is far too slow for benchmarks.
 ```sh
 brew install colima qemu lima-additional-guestagents docker
 colima start --profile avx --arch x86_64 --cpu-type max --cpus 6 --memory 8 --disk 40
-colima --profile avx ssh -- sudo sysctl -w vm.mmap_rnd_bits=28   # Otherwise TSan cannot start.
-
-docker --context colima-avx run --rm -v "$PWD":/src:ro gcc:16.2.0 bash -c '
+# seccomp=unconfined lets TSan disable ASLR for itself, as in CI. Only the tsan preset needs it.
+docker --context colima-avx run --rm --security-opt seccomp=unconfined -v "$PWD":/src:ro gcc:16.2.0 bash -c '
     apt-get update -qq && apt-get install -y -qq cmake >/dev/null
     cp -r /src /work && cd /work && rm -rf build
     CXX=g++ cmake --workflow --preset release'
