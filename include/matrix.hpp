@@ -79,7 +79,7 @@ concept EvaluableTo =
 
 /// Dense, column-major matrix. Rows and Cols are positive compile-time extents or Dynamic.
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 class Matrix {
   public:
     using value_type      = T;
@@ -114,8 +114,10 @@ class Matrix {
 
     /// Vector initialization from a flat list of coefficients: Vector<double> v{1, 2, 3}.
     /// A fixed length must match.
+    // The parentheses are needed in the definition, where GCC would otherwise parse the following
+    // mem-initializer as part of the constraint, and the two requires-clauses must match.
     constexpr Matrix(std::initializer_list<T> coeffs)
-        requires(IsVector);
+        requires(IsVector); // NOLINT(readability-redundant-parentheses)
 
     /// Evaluation constructor: computes every coefficient of `expr`.
     /// Implicit so that `Matrix c = a + b;` works.

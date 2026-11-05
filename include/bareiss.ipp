@@ -3,8 +3,6 @@
 
 // Definitions for bareiss.hpp. Do not include this file directly.
 
-#include "bareiss.hpp" // IWYU pragma: keep
-
 #include <cassert>
 #include <utility>
 

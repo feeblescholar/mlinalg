@@ -3,8 +3,6 @@
 
 // Definitions for matrix_operators.hpp. Do not include this file directly.
 
-#include "matrix_operators.hpp" // IWYU pragma: keep
-
 #include <utility>
 
 namespace mlinalg {
@@ -26,22 +24,22 @@ constexpr auto as_expr(X&& operand) -> operand_expr_t<X> {
 
 template <typename L, typename R>
     requires detail::CwiseOperands<L, R>
-constexpr auto operator+(L&& lhs,
-                         R&& rhs) -> AddOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>> {
+constexpr auto operator+(L&& lhs, R&& rhs)
+    -> AddOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>> {
     return {detail::as_expr(std::forward<L>(lhs)), detail::as_expr(std::forward<R>(rhs))};
 }
 
 template <typename L, typename R>
     requires detail::CwiseOperands<L, R>
-constexpr auto operator-(L&& lhs,
-                         R&& rhs) -> SubOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>> {
+constexpr auto operator-(L&& lhs, R&& rhs)
+    -> SubOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>> {
     return {detail::as_expr(std::forward<L>(lhs)), detail::as_expr(std::forward<R>(rhs))};
 }
 
 template <typename L, typename R>
     requires detail::ProductOperands<L, R>
-constexpr auto operator*(L&& lhs,
-                         R&& rhs) -> MulOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>> {
+constexpr auto operator*(L&& lhs, R&& rhs)
+    -> MulOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>> {
     return {detail::as_expr(std::forward<L>(lhs)), detail::as_expr(std::forward<R>(rhs))};
 }
 

@@ -3,8 +3,6 @@
 
 // Definitions for partial_piv_lu.hpp. Do not include this file directly.
 
-#include "partial_piv_lu.hpp" // IWYU pragma: keep
-
 #include <cassert>
 #include <utility>
 

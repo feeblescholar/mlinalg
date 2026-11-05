@@ -3,8 +3,6 @@
 
 // Definitions for norms.hpp. Do not include this file directly.
 
-#include "norms.hpp" // IWYU pragma: keep
-
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -65,9 +63,9 @@ void jacobi_orthogonalize_columns(M& matrix) {
                 const T    phase = conj_scalar(gamma) / gamma_abs;
                 const Real zeta  = (beta - alpha) / (Real{2} * gamma_abs);
                 const Real t     = (zeta < Real{0} ? Real{-1} : Real{1}) /
-                               (std::abs(zeta) + std::sqrt(Real{1} + (zeta * zeta)));
-                const Real c = Real{1} / std::sqrt(Real{1} + (t * t));
-                const Real s = c * t;
+                                   (std::abs(zeta) + std::sqrt(Real{1} + (zeta * zeta)));
+                const Real c     = Real{1} / std::sqrt(Real{1} + (t * t));
+                const Real s     = c * t;
                 for (decltype(matrix.rows()) i = 0; i < rows; ++i) {
                     const T up   = matrix(i, p);
                     const T uq   = phase * matrix(i, q);

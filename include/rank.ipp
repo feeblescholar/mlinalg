@@ -3,8 +3,6 @@
 
 // Definitions for rank.hpp. Do not include this file directly.
 
-#include "rank.hpp" // IWYU pragma: keep
-
 #include <algorithm>
 #include <cmath>
 #include <limits>

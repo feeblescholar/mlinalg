@@ -252,8 +252,8 @@ inline auto div(detail::PacketCF lhs, detail::PacketCF rhs) noexcept -> detail::
     return detail::PacketCF(vdivq_f32(num, den));
 }
 
-inline auto fma(detail::PacketCF a, detail::PacketCF b,
-                detail::PacketCF c) noexcept -> detail::PacketCF {
+inline auto fma(detail::PacketCF a, detail::PacketCF b, detail::PacketCF c) noexcept
+    -> detail::PacketCF {
     return add(mul(a, b), c);
 }
 
@@ -325,8 +325,8 @@ inline auto div(detail::PacketCD lhs, detail::PacketCD rhs) noexcept -> detail::
     return detail::PacketCD(vdivq_f64(num, den));
 }
 
-inline auto fma(detail::PacketCD a, detail::PacketCD b,
-                detail::PacketCD c) noexcept -> detail::PacketCD {
+inline auto fma(detail::PacketCD a, detail::PacketCD b, detail::PacketCD c) noexcept
+    -> detail::PacketCD {
     return add(mul(a, b), c);
 }
 

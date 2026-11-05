@@ -84,32 +84,32 @@ concept ScalarFor = BindableOperand<X> && std::same_as<S, expr_scalar_t<operand_
 /// Coefficient-wise sum.
 template <typename L, typename R>
     requires detail::CwiseOperands<L, R>
-[[nodiscard]] constexpr auto
-operator+(L&& lhs, R&& rhs) -> AddOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>>;
+[[nodiscard]] constexpr auto operator+(L&& lhs, R&& rhs)
+    -> AddOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>>;
 
 /// Coefficient-wise difference.
 template <typename L, typename R>
     requires detail::CwiseOperands<L, R>
-[[nodiscard]] constexpr auto
-operator-(L&& lhs, R&& rhs) -> SubOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>>;
+[[nodiscard]] constexpr auto operator-(L&& lhs, R&& rhs)
+    -> SubOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>>;
 
 /// Matrix product.
 template <typename L, typename R>
     requires detail::ProductOperands<L, R>
-[[nodiscard]] constexpr auto
-operator*(L&& lhs, R&& rhs) -> MulOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>>;
+[[nodiscard]] constexpr auto operator*(L&& lhs, R&& rhs)
+    -> MulOp<detail::operand_expr_t<L>, detail::operand_expr_t<R>>;
 
 /// scalar * matrix.
 template <typename S, typename X>
     requires detail::ScalarFor<S, X>
-[[nodiscard]] constexpr auto operator*(const S& scalar,
-                                       X&&      operand) -> ScalarMulOp<detail::operand_expr_t<X>>;
+[[nodiscard]] constexpr auto operator*(const S& scalar, X&& operand)
+    -> ScalarMulOp<detail::operand_expr_t<X>>;
 
 /// matrix * scalar. Evaluated as scalar * coefficient.
 template <typename X, typename S>
     requires detail::ScalarFor<S, X>
-[[nodiscard]] constexpr auto operator*(X&&      operand,
-                                       const S& scalar) -> ScalarMulOp<detail::operand_expr_t<X>>;
+[[nodiscard]] constexpr auto operator*(X&& operand, const S& scalar)
+    -> ScalarMulOp<detail::operand_expr_t<X>>;
 
 /// Transpose: rows and columns swapped.
 template <typename X>
@@ -119,8 +119,8 @@ template <typename X>
 /// Conjugate (Hermitian) transpose. Equal to transpose() for real scalar types.
 template <typename X>
     requires detail::BindableOperand<X>
-[[nodiscard]] constexpr auto
-conj_transpose(X&& operand) -> ConjTransposeOp<detail::operand_expr_t<X>>;
+[[nodiscard]] constexpr auto conj_transpose(X&& operand)
+    -> ConjTransposeOp<detail::operand_expr_t<X>>;
 
 namespace detail {
 

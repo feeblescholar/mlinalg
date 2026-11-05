@@ -273,8 +273,8 @@ template <typename T, int Rows, int Cols> struct storage_selector<T, Rows, Cols,
 /// Storage policy selector: FixedStorage when both dimensions are positive compile-time
 /// constants, DynamicStorage when at least one dimension is Dynamic.
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-using MatrixStorage = typename detail::storage_selector<T, Rows, Cols>::type;
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+using MatrixStorage = detail::storage_selector<T, Rows, Cols>::type;
 
 } // namespace mlinalg
 

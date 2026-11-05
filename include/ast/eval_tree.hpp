@@ -100,16 +100,16 @@ template <typename L, typename R>
 [[nodiscard]] constexpr auto make_eval_tree(const MulOp<L, R>& expr) -> eval_tree_t<MulOp<L, R>>;
 
 template <typename E>
-[[nodiscard]] constexpr auto
-make_eval_tree(const ScalarMulOp<E>& expr) -> eval_tree_t<ScalarMulOp<E>>;
+[[nodiscard]] constexpr auto make_eval_tree(const ScalarMulOp<E>& expr)
+    -> eval_tree_t<ScalarMulOp<E>>;
 
 template <typename E>
-[[nodiscard]] constexpr auto
-make_eval_tree(const TransposeOp<E>& expr) -> eval_tree_t<TransposeOp<E>>;
+[[nodiscard]] constexpr auto make_eval_tree(const TransposeOp<E>& expr)
+    -> eval_tree_t<TransposeOp<E>>;
 
 template <typename E>
-[[nodiscard]] constexpr auto
-make_eval_tree(const ConjTransposeOp<E>& expr) -> eval_tree_t<ConjTransposeOp<E>>;
+[[nodiscard]] constexpr auto make_eval_tree(const ConjTransposeOp<E>& expr)
+    -> eval_tree_t<ConjTransposeOp<E>>;
 
 /// Rewrites a MulOp operand: forwarded if it is direct, evaluated into a Temporary otherwise.
 template <typename E>

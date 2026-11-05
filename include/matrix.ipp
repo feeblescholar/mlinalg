@@ -3,8 +3,6 @@
 
 // Definitions for matrix.hpp. Do not include this file directly.
 
-#include "matrix.hpp" // IWYU pragma: keep
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -15,22 +13,21 @@
 namespace mlinalg {
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-                                   constexpr Matrix<T, Rows, Cols>::Matrix(Index rows, Index cols)
-                 requires(!storage_type::is_fixed)
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr Matrix<T, Rows, Cols>::Matrix(Index rows, Index cols)
+    requires(!storage_type::is_fixed)
     : m_storage(rows, cols) {}
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-                                   constexpr Matrix<T, Rows, Cols>::Matrix(Index size)
-                 requires detail::DynamicVectorDims<Rows, Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr Matrix<T, Rows, Cols>::Matrix(Index size)
+    requires detail::DynamicVectorDims<Rows, Cols>
     : m_storage(Rows == 1 ? 1 : size, Rows == 1 ? size : 1) {}
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-                                   constexpr Matrix<T, Rows, Cols>::Matrix(
-                                       std::initializer_list<std::initializer_list<T>> rows)
-                 requires(!IsVector)
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr Matrix<T, Rows, Cols>::Matrix(std::initializer_list<std::initializer_list<T>> rows)
+    requires(!IsVector)
     : m_storage(static_cast<Index>(rows.size()), Cols != Dynamic ? Cols
                                                  : rows.size() == 0
                                                      ? 0
@@ -48,19 +45,18 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> &&
-             detail::ValidDim<Cols>
-             constexpr Matrix<T, Rows, Cols>::Matrix(std::initializer_list<T> coeffs)
-                 requires(IsVector)
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr Matrix<T, Rows, Cols>::Matrix(std::initializer_list<T> coeffs)
+    requires(IsVector) // NOLINT(readability-redundant-parentheses)
     : m_storage(Rows == 1 ? 1 : static_cast<Index>(coeffs.size()),
                 Rows == 1 ? static_cast<Index>(coeffs.size()) : 1) {
     std::ranges::copy(coeffs, m_storage.begin());
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-                                   template <typename E>
-                 requires detail::EvaluableTo<E, Matrix<T, Rows, Cols>>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+template <typename E>
+    requires detail::EvaluableTo<E, Matrix<T, Rows, Cols>>
 constexpr Matrix<T, Rows, Cols>::Matrix(const E& expr) : m_storage(expr.rows(), expr.cols()) {
     // Naive coefficient-wise evaluation; Module 5 replaces it with the vectorized evaluator.
     // Product operands that are expressions are evaluated into temporaries first (eval_tree.hpp).
@@ -73,9 +69,9 @@ constexpr Matrix<T, Rows, Cols>::Matrix(const E& expr) : m_storage(expr.rows(), 
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-                                   template <typename E>
-                 requires detail::EvaluableTo<E, Matrix<T, Rows, Cols>>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+template <typename E>
+    requires detail::EvaluableTo<E, Matrix<T, Rows, Cols>>
 constexpr auto Matrix<T, Rows, Cols>::operator=(const E& expr) -> Matrix& {
     // Evaluating into a temporary keeps aliasing expressions (a = a * b) correct, and leaves
     // *this untouched if evaluation throws.
@@ -85,116 +81,114 @@ constexpr auto Matrix<T, Rows, Cols>::operator=(const E& expr) -> Matrix& {
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::rows() const noexcept -> Index {
     return m_storage.rows();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::cols() const noexcept -> Index {
     return m_storage.cols();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::size() const noexcept -> Index {
     return m_storage.size();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::operator()(Index row, Index col) noexcept -> reference {
     return m_storage[index_of(row, col)];
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-constexpr auto Matrix<T, Rows, Cols>::operator()(Index row,
-                                                 Index col) const noexcept -> const_reference {
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::operator()(Index row, Index col) const noexcept
+    -> const_reference {
     return m_storage[index_of(row, col)];
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::operator()(Index i) noexcept -> reference
-                 requires IsVector
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::operator()(Index i) noexcept -> reference
+    requires IsVector
 {
     return m_storage[i];
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto
-             Matrix<T, Rows, Cols>::operator()(Index i) const noexcept -> const_reference
-                 requires IsVector
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::operator()(Index i) const noexcept -> const_reference
+    requires IsVector
 {
     return m_storage[i];
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::operator[](Index i) noexcept -> reference
-                 requires IsVector
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::operator[](Index i) noexcept -> reference
+    requires IsVector
 {
     return m_storage[i];
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto
-             Matrix<T, Rows, Cols>::operator[](Index i) const noexcept -> const_reference
-                 requires IsVector
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::operator[](Index i) const noexcept -> const_reference
+    requires IsVector
 {
     return m_storage[i];
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::data() noexcept -> pointer {
     return m_storage.data();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::data() const noexcept -> const_pointer {
     return m_storage.data();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::begin() noexcept -> iterator {
     return m_storage.begin();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::begin() const noexcept -> const_iterator {
     return m_storage.begin();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::end() noexcept -> iterator {
     return m_storage.end();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::end() const noexcept -> const_iterator {
     return m_storage.end();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr void Matrix<T, Rows, Cols>::resize(Index rows, Index cols) {
     m_storage.resize(rows, cols);
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-                                   constexpr void Matrix<T, Rows, Cols>::resize(Index size)
-                 requires detail::DynamicVectorDims<Rows, Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr void Matrix<T, Rows, Cols>::resize(Index size)
+    requires detail::DynamicVectorDims<Rows, Cols>
 {
     if constexpr (Rows == 1) {
         m_storage.resize(1, size);
@@ -204,7 +198,7 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr void
 Matrix<T, Rows, Cols>::swap(Matrix& other) noexcept(std::is_nothrow_swappable_v<storage_type>) {
     using std::swap;
@@ -212,17 +206,17 @@ Matrix<T, Rows, Cols>::swap(Matrix& other) noexcept(std::is_nothrow_swappable_v<
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::lu() const -> PartialPivLU<Matrix>
-                 requires detail::LuDecomposable<T, Rows, Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::lu() const -> PartialPivLU<Matrix>
+    requires detail::LuDecomposable<T, Rows, Cols>
 {
     return PartialPivLU<Matrix>(*this);
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::det() const -> T
-                 requires detail::HasDeterminant<T, Rows, Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::det() const -> T
+    requires detail::HasDeterminant<T, Rows, Cols>
 {
     assert(rows() == cols() && "Matrix::det: matrix must be square");
     const Matrix& m = *this;
@@ -248,9 +242,9 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::inv() const -> Matrix
-                 requires detail::LuDecomposable<T, Rows, Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::inv() const -> Matrix
+    requires detail::LuDecomposable<T, Rows, Cols>
 {
     assert(rows() == cols() && "Matrix::inv: matrix must be square");
     const Index n = rows();
@@ -290,9 +284,9 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::norm1() const -> detail::real_t<T>
-                 requires detail::NormScalar<T>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::norm1() const -> detail::real_t<T>
+    requires detail::NormScalar<T>
 {
     detail::real_t<T> largest{};
     for (Index col = 0; col < cols(); ++col) {
@@ -306,9 +300,9 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             auto Matrix<T, Rows, Cols>::norm2() const -> detail::real_t<T>
-                 requires detail::LuScalar<T>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+auto Matrix<T, Rows, Cols>::norm2() const -> detail::real_t<T>
+    requires detail::LuScalar<T>
 {
     if (rows() == 1 || cols() == 1) {
         return normF(); // a vector has a single singular value: its length
@@ -321,9 +315,9 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::norminf() const -> detail::real_t<T>
-                 requires detail::NormScalar<T>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::norminf() const -> detail::real_t<T>
+    requires detail::NormScalar<T>
 {
     // Column-major traversal would need a buffer of row sums; matrices are scanned row by row
     // instead, which costs strided reads but no allocation.
@@ -339,9 +333,9 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             auto Matrix<T, Rows, Cols>::normF() const -> detail::real_t<T>
-                 requires detail::LuScalar<T>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+auto Matrix<T, Rows, Cols>::normF() const -> detail::real_t<T>
+    requires detail::LuScalar<T>
 {
     detail::real_t<T> sum{};
     for (const T& coeff : *this) {
@@ -351,9 +345,9 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::rank() const -> Index
-                 requires detail::RankScalar<T>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::rank() const -> Index
+    requires detail::RankScalar<T>
 {
     if constexpr (detail::LuScalar<T>) {
         // A and A^H have the same rank; rotate the smaller number of columns.
@@ -367,15 +361,15 @@ template <StorageElement T, int Rows, int Cols>
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
-             constexpr auto Matrix<T, Rows, Cols>::dim() const -> Index
-                 requires detail::RankScalar<T>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
+constexpr auto Matrix<T, Rows, Cols>::dim() const -> Index
+    requires detail::RankScalar<T>
 {
     return cols() - rank();
 }
 
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 constexpr auto Matrix<T, Rows, Cols>::index_of(Index row, Index col) const noexcept -> Index {
     assert(row >= 0 && row < rows() && col >= 0 && col < cols() &&
            "Matrix: coefficient index out of range");

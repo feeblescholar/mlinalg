@@ -13,7 +13,7 @@ namespace mlinalg {
 
 /// Owning leaf node holding a column-major copy of an evaluated expression.
 template <StorageElement T, int Rows, int Cols>
-    requires detail::ValidDim<Rows> && detail::ValidDim<Cols>
+    requires(detail::ValidDim<Rows> && detail::ValidDim<Cols>)
 class Temporary {
   public:
     /// Evaluates every coefficient of `expr` once. Temporary itself is excluded before Expression

@@ -52,8 +52,8 @@ void jacobi_orthogonalize_columns(M& matrix);
 /// Squared Euclidean length of column `col`.
 template <typename M>
     requires LuScalar<typename M::value_type>
-[[nodiscard]] auto squared_column_norm(const M& matrix,
-                                       Index    col) -> real_t<typename M::value_type>;
+[[nodiscard]] auto squared_column_norm(const M& matrix, Index col)
+    -> real_t<typename M::value_type>;
 
 /// Largest singular value of `matrix`, which is taken by value and used as scratch space.
 /// Fastest when the matrix has no more columns than rows.

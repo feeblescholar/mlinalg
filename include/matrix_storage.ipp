@@ -3,8 +3,6 @@
 
 // Definitions for matrix_storage.hpp. Do not include this file directly.
 
-#include "matrix_storage.hpp" // IWYU pragma: keep
-
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
