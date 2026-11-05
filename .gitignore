@@ -26,6 +26,7 @@
 *.app
 
 # Build and Output Directories
+CMakeUserPresets.json
 build/
 target/
 bin/
