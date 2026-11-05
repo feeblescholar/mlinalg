@@ -1,0 +1,71 @@
+name: Linux
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  CTEST_PARALLEL_LEVEL: 4
+  CMAKE_GENERATOR: Ninja
+
+jobs:
+  build-and-test:
+    name: '[${{ matrix.compiler.name }}] ${{ matrix.preset }}'
+    runs-on: ubuntu-26.04
+    # Both compilers share this image, so Clang builds against the same libstdc++ as GCC.
+    container: gcc:16.2.0@sha256:07280eb2e744f1b7a2d8d4a3894c089ea07266c109758afc388a634bd098e4eb
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { name: GCC 16.2.0, cxx: g++ }
+          # The image also ships Debian's GCC 14, which Clang would otherwise pick.
+          - name: Clang 23.1.4
+            cxx: /opt/llvm/bin/clang++
+            cxxflags: --gcc-install-dir=/usr/local/lib/gcc/x86_64-linux-gnu/16.2.0
+        preset: [release, asan-ubsan, tsan]
+    env:
+      CXX: ${{ matrix.compiler.cxx }}
+      CXXFLAGS: ${{ matrix.compiler.cxxflags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@v4.4.5
+        with:
+          cmakeVersion: 4.4.5
+          ninjaVersion: 1.13.2
+
+      # apt.llvm.org only keeps the newest build of each branch, so an exact Clang comes from the
+      # checksummed release archive. Only the compiler and its runtimes are extracted.
+      - name: Install Clang
+        if: startsWith(matrix.compiler.name, 'Clang')
+        env:
+          LLVM_URL: https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/LLVM-23.1.4-Linux-X64.tar.zst
+          LLVM_SHA256: efdd1dbd089b99bfcfcde7b8eb1236163f2e88df5a981cca4f783ec9cb5e0378
+        run: |
+          apt-get update
+          apt-get install -y zstd
+          curl -fsSL -o "$RUNNER_TEMP/llvm.tar.zst" "$LLVM_URL"
+          echo "$LLVM_SHA256  $RUNNER_TEMP/llvm.tar.zst" | sha256sum -c -
+          mkdir -p /opt/llvm
+          tar -I 'zstd -d --long=31' -xf "$RUNNER_TEMP/llvm.tar.zst" -C /opt/llvm --strip-components=1 --wildcards \
+              '*/bin/clang' '*/bin/clang++' '*/bin/clang-23' '*/lib/clang/*'
+          rm "$RUNNER_TEMP/llvm.tar.zst"
+
+      - name: Configure, Build and Test
+        run: cmake --workflow --preset ${{ matrix.preset }}

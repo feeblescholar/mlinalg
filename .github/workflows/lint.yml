@@ -1,0 +1,102 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CMAKE_GENERATOR: Ninja
+
+jobs:
+  format:
+    name: clang-format
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Install clang-format
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install -r .github/lint-requirements.txt
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+
+      - name: Check formatting
+        run: git ls-files -z 'include/*' 'test/*.cpp' 'test/*.hpp' | xargs -0 clang-format --dry-run -Werror
+
+  # packet.hpp compiles one SIMD backend per target, so each one is linted on its own architecture.
+  tidy-avx2:
+    name: clang-tidy (AVX2)
+    runs-on: ubuntu-26.04
+    container: gcc:16.2.0@sha256:07280eb2e744f1b7a2d8d4a3894c089ea07266c109758afc388a634bd098e4eb
+    env:
+      CXX: g++
+      # clang-tidy would otherwise parse against Debian's GCC 14 headers, not the GCC 16 ones.
+      CLANG_TIDY_EXTRA_ARG: --gcc-install-dir=/usr/local/lib/gcc/x86_64-linux-gnu/16.2.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@v4.4.5
+        with:
+          cmakeVersion: 4.4.5
+          ninjaVersion: 1.13.2
+
+      - name: Install clang-tidy
+        run: |
+          apt-get update
+          apt-get install -y python3-venv
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install -r .github/lint-requirements.txt
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: cmake --preset debug
+
+      - name: Run clang-tidy
+        shell: bash
+        run: .github/scripts/clang-tidy.sh build/debug
+
+  tidy-neon:
+    name: clang-tidy (NEON)
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@v4.4.5
+        with:
+          cmakeVersion: 4.4.5
+          ninjaVersion: 1.13.2
+
+      - name: Install clang-tidy
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install -r .github/lint-requirements.txt
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+
+      - name: Configure
+        run: cmake --preset debug
+
+      - name: Run clang-tidy
+        run: .github/scripts/clang-tidy.sh build/debug

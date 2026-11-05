@@ -1,0 +1,44 @@
+name: macOS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  CTEST_PARALLEL_LEVEL: 4
+  CMAKE_GENERATOR: Ninja
+  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+
+jobs:
+  build-and-test:
+    name: '[Xcode 27.1] ${{ matrix.preset }}'
+    runs-on: xcode-27
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [release, asan-ubsan, tsan]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Install CMake and Ninja
+        uses: lukka/get-cmake@v4.4.5
+        with:
+          cmakeVersion: 4.4.5
+          ninjaVersion: 1.13.2
+
+      - name: Configure, Build and Test
+        run: cmake --workflow --preset ${{ matrix.preset }}
