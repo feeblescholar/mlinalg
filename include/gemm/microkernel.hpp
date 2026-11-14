@@ -58,6 +58,22 @@ template <GemmScalar T, int Packets = gemm_kernel_shape<T>::packets,
     requires(Packets > 0 && NR > 0)
 void gemm_microkernel(Index kc, const T* ap, const T* bp, T* c, Index ldc) noexcept;
 
+/// Extent of a partial tile; a struct so that rows and cols can't be swapped at the call site.
+struct TileSize {
+    Index rows;
+    Index cols;
+};
+
+/// C[0:rows, 0:cols] += (Ap * Bp)[0:rows, 0:cols] for a tile at the bottom or right edge of C,
+/// where 0 < rows <= MR and 0 < cols <= NR. Ap and Bp are full, zero-padded slivers; the kernel
+/// runs on a local tile and only its valid part is added to C, so C needs no room beyond
+/// rows x cols (ldc >= rows).
+template <GemmScalar T, int Packets = gemm_kernel_shape<T>::packets,
+          int NR = gemm_kernel_shape<T>::nr>
+    requires(Packets > 0 && NR > 0)
+void gemm_microkernel_edge(TileSize size, Index kc, const T* ap, const T* bp, T* c,
+                           Index ldc) noexcept;
+
 } // namespace mlinalg::detail
 
 #include "microkernel.ipp" // IWYU pragma: keep

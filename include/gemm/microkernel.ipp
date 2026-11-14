@@ -58,6 +58,24 @@ void gemm_microkernel(Index kc, const T* ap, const T* bp, T* c, Index ldc) noexc
     });
 }
 
+template <GemmScalar T, int Packets, int NR>
+    requires(Packets > 0 && NR > 0)
+void gemm_microkernel_edge(TileSize size, Index kc, const T* ap, const T* bp, T* c,
+                           Index ldc) noexcept {
+    constexpr Index mr = Index{Packets} * Packet<T>::size;
+    assert(size.rows > 0 && size.rows <= mr && size.cols > 0 && size.cols <= NR &&
+           ldc >= size.rows);
+
+    std::array<T, static_cast<std::size_t>(mr * NR)> tile{};
+    gemm_microkernel<T, Packets, NR>(kc, ap, bp, tile.data(), mr);
+
+    for (Index j = 0; j < size.cols; ++j) {
+        for (Index i = 0; i < size.rows; ++i) {
+            c[(j * ldc) + i] += tile[(j * mr) + i];
+        }
+    }
+}
+
 } // namespace mlinalg::detail
 
 #endif // GEMM_MICROKERNEL_IPP
